@@ -317,7 +317,7 @@ export default function ReceptionKioskPage() {
     }
 
     if (picked.getTime() > latest) {
-      setCustomTimeError("That's too far ahead — please pick a time later today, closer to now.");
+      setCustomTimeError("That's too far ahead. Please pick a time later today, closer to now.");
       return;
     }
 
@@ -385,7 +385,7 @@ export default function ReceptionKioskPage() {
               ))}
             </div>
             <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/45">
-              Step {stepIndex + 1} of {FLOW_STEPS.length} — {STEP_TITLES[step]}
+              Step {stepIndex + 1} of {FLOW_STEPS.length}: {STEP_TITLES[step]}
             </p>
           </div>
         ) : null}
@@ -480,7 +480,7 @@ export default function ReceptionKioskPage() {
                     <div className="space-y-10">
                       {staffByDepartment.map(([department, members]) => (
                         <div key={department}>
-                          <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-gold-300">
+                          <h3 className="mb-4 text-xs font-semibold uppercase tracking-wide text-gold-300">
                             {department}
                           </h3>
 
@@ -820,7 +820,7 @@ export default function ReceptionKioskPage() {
                       value={form.purposeNote}
                       maxLength={500}
                       onChange={(e) => setField("purposeNote", e.target.value)}
-                      placeholder="Optional — e.g. referred by Mr. Sharma, or here for the 3 PM appointment"
+                      placeholder="Optional. For example: referred by Mr. Sharma, or here for the 3 PM appointment"
                       className="w-full resize-none rounded-3xl border border-white/15 bg-white/[0.06] px-6 py-5 text-base leading-relaxed text-white outline-none transition-colors duration-200 placeholder:text-white/30 focus:border-gold-300/70 focus:bg-white/10"
                     />
                   </div>
@@ -919,7 +919,7 @@ export default function ReceptionKioskPage() {
                       We&rsquo;ve let {selectedStaff?.name ?? "them"} know
                     </h2>
                     <p className="mt-5 max-w-lg text-lg leading-relaxed text-white/55">
-                      Please take a seat — this screen will update the moment
+                      Please take a seat. This screen will update the moment
                       they respond.
                     </p>
                     <p
@@ -1005,7 +1005,7 @@ function AvailabilityHeadline({
       <span aria-hidden className="size-2 rounded-full bg-gold-300" />
       {who} is busy right now
       {next
-        ? ` — next free at ${formatTime(next.start)}`
+        ? `. Next free at ${formatTime(next.start)}`
         : " and has nothing free later today"}
       .
     </p>
@@ -1042,14 +1042,14 @@ function StatusResult({
       : {
           icon: <IconCheck className="size-10 text-emerald-300" />,
           ring: "bg-emerald-400/15",
-          title: "You're expected — please go ahead",
+          title: "You're expected. Please go ahead.",
           body: `${first} has accepted your request.`,
         },
     declined: {
       icon: <IconX className="size-10 text-maroon-200" />,
       ring: "bg-maroon-500/25",
       title: `${first} can't meet right now`,
-      body: "Please speak to the front desk — they'll help you from here.",
+      body: "Please speak to the front desk. They'll help you from here.",
     },
     postponed: {
       icon: <IconCalendarTime className="size-10 text-gold-300" />,

@@ -193,9 +193,9 @@ export default function StaffDirectory() {
 
       setSuccess(
         loginResult?.created
-          ? `${formData.name.trim()}'s login is ready — send them the password.`
+          ? `${formData.name.trim()}'s login is ready. Send them the password.`
           : loginResult
-            ? `Password reset for ${formData.name.trim()} — send them the new one.`
+            ? `Password reset for ${formData.name.trim()}. Send them the new one.`
             : isEditing
               ? "Staff member updated."
               : `${formData.name.trim()} added. They have no login, so an admin answers their visitors.`
@@ -386,7 +386,7 @@ export default function StaffDirectory() {
                       {editingStaffId === null ? (
                         <>
                           Set a password here and their login is created the
-                          moment you add them — they can sign in straight away
+                          moment you add them. They can sign in straight away
                           with the email above. Leave it blank for someone who
                           doesn&rsquo;t need an account (e.g. a driver or
                           office assistant); their visitors still appear under
@@ -395,8 +395,8 @@ export default function StaffDirectory() {
                       ) : (
                         <>
                           Leave the password blank to leave their login
-                          exactly as it is. Type one to set their password —
-                          this also works if their login was never actually
+                          exactly as it is. Type one to set their password.
+                          This also works if their login was never actually
                           created (they&rsquo;ll simply get one now), so it
                           doubles as the fix if someone can&rsquo;t sign in.
                         </>
@@ -421,7 +421,7 @@ export default function StaffDirectory() {
                           className={inputClass}
                         />
                         <p className="mt-2 text-xs text-stone-500 dark:text-white/50">
-                          Shown in plain text on purpose — you have to read it
+                          Shown in plain text on purpose. You have to read it
                           out to them. Ask them to change it once they sign in.
                         </p>
                       </div>
@@ -438,10 +438,10 @@ export default function StaffDirectory() {
                           className={`${inputClass} cursor-pointer disabled:cursor-not-allowed disabled:opacity-50`}
                         >
                           <option value="staff">
-                            Staff — sees only their own visitors
+                            Staff (their own visitors only)
                           </option>
                           <option value="admin">
-                            Admin — manages the directory and logins
+                            Admin (manages the directory and logins)
                           </option>
                         </select>
 
@@ -504,7 +504,7 @@ export default function StaffDirectory() {
           ) : filtered.length === 0 ? (
             <li className="px-4 py-6 text-center text-sm text-stone-500 dark:text-white/50">
               {staff.length === 0
-                ? "No staff added yet — add someone so the front-desk tablet has a list."
+                ? "No staff added yet. Add someone so the front-desk tablet has a list."
                 : "No staff match that search."}
             </li>
           ) : (
@@ -580,7 +580,7 @@ export default function StaffDirectory() {
                 <tr>
                   <td colSpan={6} className="px-4 py-6 text-center text-stone-500 dark:text-white/50">
                     {staff.length === 0
-                      ? "No staff added yet — add someone so the front-desk tablet has a list."
+                      ? "No staff added yet. Add someone so the front-desk tablet has a list."
                       : "No staff match that search."}
                   </td>
                 </tr>

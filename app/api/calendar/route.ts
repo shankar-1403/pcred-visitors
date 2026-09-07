@@ -57,7 +57,7 @@ function errorResponse(error: unknown, fallback: string) {
 
   if (error instanceof Error && error.message === "NOT_ON_DIRECTORY") {
     return NextResponse.json(
-      { error: "You're not on the staff directory yet — ask an admin to add you." },
+      { error: "You're not on the staff directory yet. Ask an admin to add you." },
       { status: 403 }
     );
   }

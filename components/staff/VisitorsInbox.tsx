@@ -139,7 +139,7 @@ export default function VisitorsInbox() {
     if (!respondingTo || !user) return;
 
     if (decision === "declined" && !note.trim()) {
-      setError("Please give a reason — the visitor sees this at the door.");
+      setError("Please give a reason. The visitor sees this at the door.");
       return;
     }
 
@@ -405,7 +405,7 @@ export default function VisitorsInbox() {
                       ? "e.g. Please come up to the 3rd floor"
                       : decision === "postponed"
                         ? "e.g. Finishing a call, sorry for the wait"
-                        : "e.g. In meetings all day — please email me instead"
+                        : "e.g. In meetings all day. Please email me instead."
                   }
                   className="w-full resize-none rounded-2xl border border-navy-500/20 dark:border-white/15 px-4 py-3 text-sm text-navy-500 dark:text-white outline-none transition-colors focus:border-navy-500"
                 />
@@ -677,7 +677,7 @@ function PendingCard({
 
       {unassigned ? (
         <p className="mt-4 rounded-xl bg-amber-50 dark:bg-amber-400/15 px-3 py-2 text-xs font-medium text-amber-700 dark:text-amber-300">
-          {request.staffName} has no login — respond on their behalf.
+          {request.staffName} has no login. Respond on their behalf.
         </p>
       ) : null}
 

@@ -245,8 +245,8 @@ function CalendarView() {
         <div>
           <h1 className="font-serif text-2xl text-navy-500 dark:text-white">My calendar</h1>
           <p className="mt-1 text-sm text-stone-500 dark:text-white/50">
-            {user?.email ? `Signed in as ${user.email}` : "Your own schedule"} —
-            visitor bookings appear here automatically.
+            {user?.email ? `Signed in as ${user.email}.` : "Your own schedule."} Visitor
+            bookings appear here automatically.
           </p>
         </div>
 
@@ -584,7 +584,7 @@ function CalendarView() {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, title: e.target.value }))
                     }
-                    placeholder="e.g. Client call — Kotak"
+                    placeholder="e.g. Client call with Kotak"
                     className="min-h-12 w-full rounded-xl border border-navy-500/20 dark:border-white/15 px-4 text-navy-500 dark:text-white outline-none focus:border-navy-500"
                   />
                 </div>
