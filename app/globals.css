@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/*
+ * PCRED brand system, matched to the main site.
+ * Canonical dark blue #045178, gold accent #B8892E / #D9B872, maroon #8A191F.
+ */
+@theme {
+  --color-brand-deep: #022436;
+  --color-navy-50: #e8f2f7;
+  --color-navy-100: #c5dde9;
+  --color-navy-200: #9fc5d9;
+  --color-navy-300: #6fa8c4;
+  --color-navy-400: #4589ad;
+  --color-navy-500: #045178;
+  --color-navy-900: #045178;
+
+  --color-gold-100: #f3e2bb;
+  --color-gold-200: #e8cd8c;
+  --color-gold-300: #d9b872;
+  --color-gold-400: #c7a047;
+  --color-gold-500: #b8892e;
+
+  --color-maroon-200: #e39a9c;
+  --color-maroon-500: #8a191f;
+
+  --color-stone-50: #fafaf9;
+  --color-stone-100: #f1f0ef;
+  --color-stone-200: #e2e0de;
+  --color-stone-500: #8d8c8f;
+  --color-stone-700: #545355;
+  --color-stone-900: #1c1b1d;
+
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-stone-50);
+    color: var(--color-navy-500);
+    letter-spacing: 0.01em;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-serif);
+    letter-spacing: -0.03em;
+    font-weight: 600;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--color-gold-300) 40%, transparent);
+    color: var(--color-brand-deep);
+  }
+
+  /* Every interactive element keeps a visible keyboard ring — the kiosk is
+     touch-first, but the staff pages are used on laptops. */
+  :focus-visible {
+    outline: 2px solid var(--color-gold-300);
+    outline-offset: 2px;
+  }
+}
+
+/* The kiosk chrome is hidden on the tablet, so suppress the scrollbar there
+   rather than letting a stray gutter break the full-bleed layout. */
+.kiosk-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
