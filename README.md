@@ -200,10 +200,11 @@ whom, not what a colleague's private meetings are called.
 
 ## Calendar availability
 
+The office keeps no fixed hours — anyone can be checked in any day, any time.
 The kiosk shows the visitor when the person they want to meet is actually
-free, and lets them book a slot — computed from their working hours (set per
-person on the directory) minus whatever is already in `busy_blocks` for them.
-No setup required and nothing outside this app's own database is involved.
+free, and lets them book a slot, computed from whatever is already in
+`busy_blocks` for that person. No setup required and nothing outside this
+app's own database is involved.
 
 ## Data model (Realtime Database)
 
@@ -211,8 +212,6 @@ No setup required and nothing outside this app's own database is involved.
 staff/{staffId}
   name, designation, department, email, phone
   active                       // hidden from the kiosk when false
-  workingHours { start, end, days }
-  slotMinutes                  // 15 / 30 / 60
 
 visitor_requests/{requestId}
   visitorName, visitorPhone, visitorEmail, company, partySize

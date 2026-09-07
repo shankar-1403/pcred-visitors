@@ -6,10 +6,6 @@ import { IconSearch, IconX } from "@tabler/icons-react";
 import { createStaffAccount, patchStaffMember, saveStaffMember } from "@/src/lib/data";
 import { useAuth } from "@/src/context/AuthContext";
 import { useStaff, type Staff } from "@/src/hooks/useStaff";
-import {
-  DEFAULT_SLOT_MINUTES,
-  DEFAULT_WORKING_HOURS,
-} from "@/src/lib/availability";
 import { usePagination } from "@/src/hooks/usePagination";
 import TablePagination from "@/components/TablePagination";
 
@@ -22,9 +18,6 @@ const initialFormData = {
   password: "",
   accessRole: "staff" as "admin" | "staff",
   active: true,
-  hoursStart: DEFAULT_WORKING_HOURS.start,
-  hoursEnd: DEFAULT_WORKING_HOURS.end,
-  slotMinutes: String(DEFAULT_SLOT_MINUTES),
 };
 
 export default function StaffDirectory() {
@@ -99,9 +92,6 @@ export default function StaffDirectory() {
       password: "",
       accessRole: "staff",
       active: member.active ?? true,
-      hoursStart: member.workingHours?.start ?? DEFAULT_WORKING_HOURS.start,
-      hoursEnd: member.workingHours?.end ?? DEFAULT_WORKING_HOURS.end,
-      slotMinutes: String(member.slotMinutes ?? DEFAULT_SLOT_MINUTES),
     });
     setError("");
     setSuccess("");
@@ -181,12 +171,6 @@ export default function StaffDirectory() {
         email: formData.email.trim().toLowerCase(),
         phone: formData.phone.trim(),
         active: formData.active,
-        workingHours: {
-          start: formData.hoursStart,
-          end: formData.hoursEnd,
-          days: existing?.workingHours?.days ?? DEFAULT_WORKING_HOURS.days,
-        },
-        slotMinutes: Number(formData.slotMinutes) || DEFAULT_SLOT_MINUTES,
         createdAt: isEditing ? existing?.createdAt ?? now : now,
         createdBy: isEditing ? existing?.createdBy ?? user.uid : user.uid,
         updatedAt: now,
@@ -389,61 +373,6 @@ export default function StaffDirectory() {
                     without a login — their visitors still appear under
                     &ldquo;All requests&rdquo; for reception to answer.
                   </p>
-
-                  <fieldset className="rounded-2xl border border-navy-500/15 p-4">
-                    <legend className="px-2 text-sm font-medium text-navy-500">
-                      Availability
-                    </legend>
-                    <p className="text-xs text-stone-500">
-                      The kiosk offers visitors slots inside these hours,
-                      minus anything already on their calendar in this app.
-                    </p>
-
-                    <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                      <div>
-                        <label htmlFor="hoursStart" className={labelClass}>
-                          Available from
-                        </label>
-                        <input
-                          id="hoursStart"
-                          name="hoursStart"
-                          type="time"
-                          value={formData.hoursStart}
-                          onChange={handleChange}
-                          className={inputClass}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="hoursEnd" className={labelClass}>
-                          Until
-                        </label>
-                        <input
-                          id="hoursEnd"
-                          name="hoursEnd"
-                          type="time"
-                          value={formData.hoursEnd}
-                          onChange={handleChange}
-                          className={inputClass}
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="slotMinutes" className={labelClass}>
-                          Slot length
-                        </label>
-                        <select
-                          id="slotMinutes"
-                          name="slotMinutes"
-                          value={formData.slotMinutes}
-                          onChange={handleChange}
-                          className={`${inputClass} cursor-pointer`}
-                        >
-                          <option value="15">15 minutes</option>
-                          <option value="30">30 minutes</option>
-                          <option value="60">1 hour</option>
-                        </select>
-                      </div>
-                    </div>
-                  </fieldset>
 
                   <div className="flex items-center gap-3">
                     <input

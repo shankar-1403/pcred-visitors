@@ -27,10 +27,11 @@ export interface WorkingHours {
   days: number[];
 }
 
+/** The office has no fixed hours — anyone can be checked in any day, any time. */
 export const DEFAULT_WORKING_HOURS: WorkingHours = {
-  start: "10:00",
-  end: "18:00",
-  days: [1, 2, 3, 4, 5],
+  start: "00:00",
+  end: "23:59",
+  days: [0, 1, 2, 3, 4, 5, 6],
 };
 
 export const DEFAULT_SLOT_MINUTES = 30;
