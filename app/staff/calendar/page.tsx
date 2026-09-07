@@ -23,19 +23,8 @@ import {
   fetchMyEvents,
   type CalendarEvent,
 } from "@/src/lib/data";
-import {
-  DAY_END_HOUR,
-  DAY_START_HOUR,
-  HOUR_HEIGHT,
-  layOutDay,
-} from "@/src/lib/day-layout";
 import { useAuth } from "@/src/context/AuthContext";
 import RoleGate from "@/components/RoleGate";
-
-const HOURS = Array.from(
-  { length: DAY_END_HOUR - DAY_START_HOUR + 1 },
-  (_, i) => DAY_START_HOUR + i
-);
 
 function toKey(date: Date) {
   const y = date.getFullYear();
@@ -89,15 +78,6 @@ const dayFmt = new Intl.DateTimeFormat("en-IN", {
   month: "long",
 });
 
-function hourLabel(hour: number) {
-  const date = new Date();
-  date.setHours(hour, 0, 0, 0);
-  return new Intl.DateTimeFormat("en-IN", {
-    hour: "numeric",
-    hour12: true,
-  }).format(date);
-}
-
 function CalendarView() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -147,6 +127,7 @@ function CalendarView() {
   const loading = Boolean(user) && fresh === null;
 
   const [addOpen, setAddOpen] = useState(false);
+  const [dayModalOpen, setDayModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addError, setAddError] = useState("");
   const [form, setForm] = useState({ title: "", start: "10:00", end: "11:00" });
@@ -218,14 +199,7 @@ function CalendarView() {
     [monthEvents, day]
   );
 
-  const positioned = useMemo(() => layOutDay(events, dayStart), [events, dayStart]);
-  const allDay = useMemo(() => events.filter((e) => e.allDay), [events]);
-
   const isToday = toKey(new Date()) === toKey(day);
-  const nowOffset =
-    ((now - dayStart) / 3_600_000 - DAY_START_HOUR) * HOUR_HEIGHT;
-  const showNowLine =
-    isToday && nowOffset >= 0 && nowOffset <= (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT;
 
   async function handleAdd(e: FormEvent) {
     e.preventDefault();
@@ -343,7 +317,10 @@ function CalendarView() {
               <button
                 key={key}
                 type="button"
-                onClick={() => goto(cellDate)}
+                onClick={() => {
+                  goto(cellDate);
+                  setDayModalOpen(true);
+                }}
                 aria-current={isSelected ? "date" : undefined}
                 className={`relative flex aspect-square min-h-11 cursor-pointer flex-col items-center justify-center gap-1 border-b border-r border-navy-500/[0.06] text-sm transition-colors duration-150 last:border-r-0 sm:aspect-auto sm:min-h-16 ${
                   isSelected
@@ -376,160 +353,179 @@ function CalendarView() {
         </div>
       </div>
 
-      <p className="mt-4 font-serif text-lg text-navy-500">
-        {dayFmt.format(day)}
-        {isToday ? (
-          <span className="ml-2 rounded-full bg-gold-300/25 px-2 py-0.5 align-middle text-[11px] font-semibold uppercase tracking-[0.14em] text-gold-500">
-            Today
-          </span>
-        ) : null}
-      </p>
-
       {error ? (
         <p role="alert" className="mt-6 rounded-2xl bg-red-50 px-5 py-4 text-sm text-red-600">
           {error}
         </p>
       ) : null}
 
-      {allDay.length ? (
-        <div className="mt-6 flex flex-wrap gap-2">
-          {allDay.map((event) => (
-            <span
-              key={event.id}
-              className="rounded-lg bg-navy-500/10 px-3 py-1.5 text-sm font-medium text-navy-500"
+      {/* Day detail — a popup rather than a section that pushes the page
+          around every time a different date is tapped. The month grid above
+          already shows the shape of the month (the gold dots); this only
+          needs to answer "what's on this one day", so a plain ordered list
+          does that better than an hour-ruled canvas once every event here
+          runs 30–60 minutes anyway. */}
+      <AnimatePresence>
+        {dayModalOpen ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => setDayModalOpen(false)}
+              className="absolute inset-0 cursor-pointer bg-navy-500/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ duration: 0.25 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label={dayFmt.format(day)}
+              className="relative z-10 max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-4xl bg-white shadow-2xl"
             >
-              {event.title}
-            </span>
-          ))}
-        </div>
-      ) : null}
-
-      {/* Timeline */}
-      <div className="mt-6 overflow-hidden rounded-2xl border border-navy-500/12 bg-white">
-        {loading ? (
-          <div className="space-y-px p-4">
-            {[0, 1, 2, 3, 4, 5].map((key) => (
-              <div
-                key={key}
-                className="h-14 animate-pulse rounded-lg bg-navy-500/[0.05]"
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="relative flex">
-            {/* Hour gutter */}
-            <div className="w-16 shrink-0 border-r border-navy-500/10 sm:w-20">
-              {HOURS.map((hour) => (
-                <div
-                  key={hour}
-                  style={{ height: HOUR_HEIGHT }}
-                  className="relative -top-2 pr-2 text-right text-[11px] font-medium tabular-nums text-stone-500"
+              <div className="sticky top-0 flex items-center justify-between border-b border-navy-500/10 bg-white px-6 py-5">
+                <p className="font-serif text-lg text-navy-500">
+                  {dayFmt.format(day)}
+                  {isToday ? (
+                    <span className="ml-2 rounded-full bg-gold-300/25 px-2 py-0.5 align-middle text-[11px] font-semibold uppercase tracking-[0.14em] text-gold-500">
+                      Today
+                    </span>
+                  ) : null}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setDayModalOpen(false)}
+                  aria-label="Close"
+                  className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-navy-500/15 text-navy-500 transition-colors hover:bg-navy-500/10"
                 >
-                  {hourLabel(hour)}
+                  <IconX className="size-5" />
+                </button>
+              </div>
+
+              {loading ? (
+                <div className="space-y-px p-4">
+                  {[0, 1, 2].map((key) => (
+                    <div
+                      key={key}
+                      className="h-16 animate-pulse rounded-lg bg-navy-500/[0.05]"
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
-
-            {/* Event canvas */}
-            <div
-              className="relative flex-1"
-              style={{ height: (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT }}
-            >
-              {HOURS.map((hour, index) => (
-                <div
-                  key={hour}
-                  style={{ top: index * HOUR_HEIGHT }}
-                  className="pointer-events-none absolute inset-x-0 border-t border-navy-500/8"
-                />
-              ))}
-
-              {showNowLine ? (
-                <div
-                  style={{ top: nowOffset }}
-                  className="pointer-events-none absolute inset-x-0 z-20 flex items-center"
-                  aria-hidden
-                >
-                  <span className="size-2 rounded-full bg-maroon-500" />
-                  <span className="h-px flex-1 bg-maroon-500" />
-                </div>
-              ) : null}
-
-              {positioned.length === 0 ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center">
+              ) : events.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
                   <p className="text-sm font-medium text-navy-500">
                     Nothing scheduled {isToday ? "today" : "this day"}.
                   </p>
                   <button
                     type="button"
-                    onClick={() => setAddOpen(true)}
+                    onClick={() => {
+                      setDayModalOpen(false);
+                      setAddOpen(true);
+                    }}
                     className="min-h-10 cursor-pointer rounded-lg border border-navy-500/20 px-4 text-sm font-medium text-navy-500 transition-colors hover:bg-navy-500/8"
                   >
                     Add an event
                   </button>
                 </div>
-              ) : null}
+              ) : (
+                <>
+                  <ul className="divide-y divide-navy-500/8">
+                    {[...events]
+                      .sort((a, b) => a.start - b.start)
+                      .map((event) => {
+                        const isNow =
+                          isToday && now >= event.start && now < event.end;
 
-              {positioned.map(({ event, top, height, column, columns }) => {
-                const width = 100 / columns;
+                        return (
+                          <li
+                            key={event.id}
+                            className={`flex items-start gap-4 px-6 py-3.5 ${
+                              isNow ? "bg-maroon-500/[0.04]" : ""
+                            }`}
+                          >
+                            <div className="w-16 shrink-0 pt-0.5 text-right text-sm tabular-nums text-stone-600">
+                              {event.allDay ? "All day" : timeFmt.format(event.start)}
+                            </div>
 
-                return (
-                  <motion.div
-                    key={event.id}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    style={{
-                      top,
-                      height,
-                      left: `calc(${column * width}% + 6px)`,
-                      width: `calc(${width}% - 12px)`,
-                    }}
-                    className={`absolute z-10 overflow-hidden rounded-lg border-l-4 px-3 py-1.5 ${
-                      event.isVisit
-                        ? "border-l-gold-500 bg-gold-100/70"
-                        : "border-l-navy-500 bg-navy-500/[0.07]"
-                    }`}
-                  >
-                    <p
-                      className={`flex items-center gap-1.5 truncate text-xs font-semibold ${
-                        event.isVisit ? "text-gold-700" : "text-navy-500"
-                      }`}
-                    >
-                      {event.isVisit ? (
-                        <IconUserCheck className="size-3.5 shrink-0" />
-                      ) : null}
-                      <span className="truncate">{event.title}</span>
-                    </p>
-                    {height > 40 ? (
-                      <p className="mt-0.5 truncate text-[11px] tabular-nums text-stone-600">
-                        {timeFmt.format(event.start)} –{" "}
-                        {timeFmt.format(event.end)}
-                        {event.location ? (
-                          <span className="ml-2 inline-flex items-center gap-1">
-                            <IconMapPin className="size-3" />
-                            {event.location}
-                          </span>
-                        ) : null}
+                            <div
+                              className={`h-full min-h-10 w-1 shrink-0 self-stretch rounded-full ${
+                                event.isVisit ? "bg-gold-500" : "bg-navy-500"
+                              }`}
+                              aria-hidden
+                            />
+
+                            <div className="min-w-0 flex-1">
+                              <p
+                                className={`flex items-center gap-1.5 text-sm font-semibold ${
+                                  event.isVisit ? "text-gold-700" : "text-navy-500"
+                                }`}
+                              >
+                                {event.isVisit ? (
+                                  <IconUserCheck className="size-3.5 shrink-0" />
+                                ) : null}
+                                <span className="truncate">{event.title}</span>
+                                {isNow ? (
+                                  <span className="rounded-full bg-maroon-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-maroon-500">
+                                    Now
+                                  </span>
+                                ) : null}
+                              </p>
+                              {!event.allDay ? (
+                                <p className="mt-0.5 text-xs text-stone-500">
+                                  {timeFmt.format(event.start)} –{" "}
+                                  {timeFmt.format(event.end)}
+                                  {event.location ? (
+                                    <span className="ml-2 inline-flex items-center gap-1">
+                                      <IconMapPin className="size-3" />
+                                      {event.location}
+                                    </span>
+                                  ) : null}
+                                </p>
+                              ) : null}
+                            </div>
+                          </li>
+                        );
+                      })}
+                  </ul>
+
+                  <div className="flex items-center justify-between gap-4 border-t border-navy-500/10 px-6 py-4">
+                    {events.some((e) => e.isVisit) ? (
+                      <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-500">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2.5 w-1 rounded-full bg-navy-500" />
+                          Your meetings
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2.5 w-1 rounded-full bg-gold-500" />
+                          Booked at the front desk
+                        </span>
                       </p>
-                    ) : null}
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <p className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-stone-500">
-        <span className="flex items-center gap-2">
-          <span className="h-3 w-1 rounded-full bg-navy-500" />
-          Your meetings
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="h-3 w-1 rounded-full bg-gold-500" />
-          Booked at the front desk
-        </span>
-      </p>
+                    ) : (
+                      <span />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDayModalOpen(false);
+                        setAddOpen(true);
+                      }}
+                      className="min-h-9 shrink-0 cursor-pointer rounded-lg border border-navy-500/20 px-3 text-xs font-medium text-navy-500 transition-colors hover:bg-navy-500/8"
+                    >
+                      + Add event
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       {/* Add event */}
       <AnimatePresence>

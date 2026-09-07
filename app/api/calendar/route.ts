@@ -78,9 +78,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Invalid range." }, { status: 400 });
     }
 
-    // A month is plenty for a day or week view, and stops one request pulling
-    // a year of someone's history.
-    if (to - from > 31 * 24 * 60 * 60 * 1000) {
+    // The month grid always spans 42 days (six full weeks, to fill the
+    // calendar) rather than the ~30 days in the month itself — this stops one
+    // request pulling a year of history without cutting the grid off.
+    if (to - from > 45 * 24 * 60 * 60 * 1000) {
       return NextResponse.json({ error: "Range too wide." }, { status: 400 });
     }
 
