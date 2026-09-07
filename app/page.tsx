@@ -28,7 +28,11 @@ import {
   fetchAvailability,
   type Availability,
 } from "@/src/lib/data";
-import type { Slot } from "@/src/lib/availability";
+import {
+  MAX_LOOKAHEAD_HOURS,
+  MIN_LEAD_MINUTES,
+  type Slot,
+} from "@/src/lib/availability";
 
 const PURPOSES = [
   "Meeting",
@@ -113,6 +117,10 @@ export default function ReceptionKioskPage() {
   const [availabilityError, setAvailabilityError] = useState("");
   /** Chosen slot start, or null for "meet now". */
   const [requestedFor, setRequestedFor] = useState<number | null>(null);
+  /** "HH:MM" typed into the custom time picker — separate so the input can
+      hold a value the visitor is still typing, before it becomes a real pick. */
+  const [customTime, setCustomTime] = useState("");
+  const [customTimeError, setCustomTimeError] = useState("");
 
   const { request } = useVisitorRequest(requestId);
   const status = request?.status ?? "pending";
@@ -129,6 +137,8 @@ export default function ReceptionKioskPage() {
     setAvailability(null);
     setAvailabilityError("");
     setRequestedFor(null);
+    setCustomTime("");
+    setCustomTimeError("");
   }, []);
 
   // Idle guard: any half-finished check-in is wiped so the next visitor never
@@ -191,6 +201,8 @@ export default function ReceptionKioskPage() {
   const selectStaff = useCallback(async (member: Staff) => {
     setSelectedStaff(member);
     setRequestedFor(null);
+    setCustomTime("");
+    setCustomTimeError("");
     setAvailability(null);
     setAvailabilityError("");
     setStep("when");
@@ -276,6 +288,41 @@ export default function ReceptionKioskPage() {
     () => (availability?.slots ?? []).filter((slot: Slot) => slot.available),
     [availability]
   );
+
+  /**
+   * The slot grid only offers fixed intervals — someone due at 2:47pm for a
+   * scheduled call has no way to say so otherwise. Same bounds as the grid
+   * (a short lead time, and not past today), just without the 30-minute snap.
+   */
+  const applyCustomTime = (value: string) => {
+    setCustomTime(value);
+    setCustomTimeError("");
+
+    if (!value) return;
+
+    const [hours, minutes] = value.split(":").map(Number);
+
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return;
+
+    const picked = new Date();
+    picked.setHours(hours, minutes, 0, 0);
+
+    const now = Date.now();
+    const earliest = now + MIN_LEAD_MINUTES * 60_000;
+    const latest = now + MAX_LOOKAHEAD_HOURS * 3_600_000;
+
+    if (picked.getTime() < earliest) {
+      setCustomTimeError(`Please pick a time at least ${MIN_LEAD_MINUTES} minutes from now.`);
+      return;
+    }
+
+    if (picked.getTime() > latest) {
+      setCustomTimeError("That's too far ahead — please pick a time later today, closer to now.");
+      return;
+    }
+
+    setRequestedFor(picked.getTime());
+  };
 
   const stepIndex = FLOW_STEPS.indexOf(step);
 
@@ -526,7 +573,11 @@ export default function ReceptionKioskPage() {
                           wave someone in, and the calendar may be wrong. */}
                       <button
                         type="button"
-                        onClick={() => setRequestedFor(null)}
+                        onClick={() => {
+                          setRequestedFor(null);
+                          setCustomTime("");
+                          setCustomTimeError("");
+                        }}
                         aria-pressed={requestedFor === null}
                         className={`mt-6 flex min-h-18 cursor-pointer items-center justify-between rounded-2xl border px-7 text-left transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-300 ${
                           requestedFor === null
@@ -563,7 +614,11 @@ export default function ReceptionKioskPage() {
                               <button
                                 key={slot.start}
                                 type="button"
-                                onClick={() => setRequestedFor(slot.start)}
+                                onClick={() => {
+                                  setRequestedFor(slot.start);
+                                  setCustomTime("");
+                                  setCustomTimeError("");
+                                }}
                                 aria-pressed={requestedFor === slot.start}
                                 className={`flex min-h-16 cursor-pointer items-center justify-center rounded-2xl border text-lg font-semibold tabular-nums transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-300 active:scale-[0.98] ${
                                   requestedFor === slot.start
@@ -577,6 +632,39 @@ export default function ReceptionKioskPage() {
                           </div>
                         </>
                       ) : null}
+
+                      <div className="mt-8">
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
+                          Or choose your own time
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <input
+                            type="time"
+                            value={customTime}
+                            onChange={(e) => applyCustomTime(e.target.value)}
+                            aria-label="Choose a specific time to meet"
+                            // Matches the native picker's icon and popover to the
+                            // kiosk's dark theme instead of the browser default.
+                            style={{ colorScheme: "dark" }}
+                            className={`min-h-16 rounded-2xl border bg-white/[0.05] px-5 text-lg font-semibold tabular-nums text-white outline-none transition-colors duration-200 focus:border-gold-300/70 ${
+                              customTime && requestedFor !== null && !customTimeError
+                                ? "border-gold-300"
+                                : "border-white/15"
+                            }`}
+                          />
+                          {customTime && requestedFor !== null && !customTimeError ? (
+                            <span className="flex min-h-11 items-center gap-2 rounded-full bg-gold-300/15 px-4 text-sm font-medium text-gold-200">
+                              <IconCheck className="size-4" />
+                              Set for {formatTime(requestedFor)}
+                            </span>
+                          ) : null}
+                        </div>
+                        {customTimeError ? (
+                          <p role="alert" className="mt-2 text-sm text-red-300">
+                            {customTimeError}
+                          </p>
+                        ) : null}
+                      </div>
                     </>
                   )}
 

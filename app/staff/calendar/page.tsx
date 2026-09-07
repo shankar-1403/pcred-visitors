@@ -54,6 +54,29 @@ function fromKey(key: string | null): Date {
   return date;
 }
 
+/**
+ * The 6x7 grid a traditional month calendar shows — the selected month plus
+ * enough of the adjacent months to fill whole weeks, starting on Sunday.
+ */
+function buildMonthGrid(monthCursor: Date): Date[] {
+  const first = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1);
+  const gridStart = new Date(first);
+  gridStart.setDate(first.getDate() - first.getDay());
+
+  return Array.from({ length: 42 }, (_, i) => {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + i);
+    return date;
+  });
+}
+
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const monthFmt = new Intl.DateTimeFormat("en-IN", {
+  month: "long",
+  year: "numeric",
+});
+
 const timeFmt = new Intl.DateTimeFormat("en-IN", {
   hour: "numeric",
   minute: "2-digit",
@@ -84,11 +107,30 @@ function CalendarView() {
   // button steps through days the way people expect.
   const day = useMemo(() => fromKey(searchParams.get("date")), [searchParams]);
   const dayStart = day.getTime();
-  const dayEnd = dayStart + 24 * 3_600_000;
+
+  // Which month the grid is showing. Independent of the selected day so
+  // paging through months doesn't lose your place, but re-synced whenever the
+  // selected day lands outside it (a URL visit, or the Today button) — done
+  // by adjusting state during render, React's own pattern for this, rather
+  // than an effect that would commit the stale month for one extra frame.
+  const dayMonthKey = `${day.getFullYear()}-${day.getMonth()}`;
+  const [monthCursor, setMonthCursor] = useState(
+    () => new Date(day.getFullYear(), day.getMonth(), 1)
+  );
+  const [syncedDayMonthKey, setSyncedDayMonthKey] = useState(dayMonthKey);
+
+  if (dayMonthKey !== syncedDayMonthKey) {
+    setSyncedDayMonthKey(dayMonthKey);
+    setMonthCursor(new Date(day.getFullYear(), day.getMonth(), 1));
+  }
+
+  const monthGrid = useMemo(() => buildMonthGrid(monthCursor), [monthCursor]);
+  const monthRangeStart = monthGrid[0].getTime();
+  const monthRangeEnd = monthGrid[monthGrid.length - 1].getTime() + 24 * 3_600_000;
 
   // One piece of state, written only from the resolved fetch. "Loading" is
-  // then derived from whether the result belongs to the day on screen, which
-  // also stops a slow response for yesterday overwriting today.
+  // then derived from whether the result belongs to the month on screen,
+  // which also stops a slow response for last month overwriting this one.
   const [result, setResult] = useState<{
     key: number;
     events: CalendarEvent[];
@@ -97,10 +139,10 @@ function CalendarView() {
   const [reloadNonce, setReloadNonce] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
-  const fresh = result?.key === dayStart ? result : null;
+  const fresh = result?.key === monthRangeStart ? result : null;
   // Memoised so the empty fallback is not a fresh array on every render, which
-  // would re-run the day layout continuously.
-  const events = useMemo(() => fresh?.events ?? [], [fresh]);
+  // would re-run the month grouping and day layout continuously.
+  const monthEvents = useMemo(() => fresh?.events ?? [], [fresh]);
   const error = fresh?.error ?? "";
   const loading = Boolean(user) && fresh === null;
 
@@ -114,11 +156,11 @@ function CalendarView() {
 
     let cancelled = false;
 
-    fetchMyEvents(dayStart, dayEnd)
+    fetchMyEvents(monthRangeStart, monthRangeEnd)
       .then((data) => {
         if (cancelled) return;
         setResult({
-          key: dayStart,
+          key: monthRangeStart,
           events: data.events,
           error: "",
         });
@@ -126,7 +168,7 @@ function CalendarView() {
       .catch((err: unknown) => {
         if (cancelled) return;
         setResult({
-          key: dayStart,
+          key: monthRangeStart,
           events: [],
           error:
             err instanceof Error
@@ -138,7 +180,7 @@ function CalendarView() {
     return () => {
       cancelled = true;
     };
-  }, [dayStart, dayEnd, user, reloadNonce]);
+  }, [monthRangeStart, monthRangeEnd, user, reloadNonce]);
 
   const reload = useCallback(() => setReloadNonce((n) => n + 1), []);
 
@@ -150,11 +192,31 @@ function CalendarView() {
 
   const goto = (date: Date) => router.push(`/staff/calendar?date=${toKey(date)}`);
 
-  const shiftDay = (delta: number) => {
-    const next = new Date(day);
-    next.setDate(next.getDate() + delta);
-    goto(next);
+  const shiftMonth = (delta: number) => {
+    setMonthCursor(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1)
+    );
   };
+
+  const goToday = () => {
+    const today = new Date();
+    setMonthCursor(new Date(today.getFullYear(), today.getMonth(), 1));
+    goto(today);
+  };
+
+  // Which days in the visible grid have something on them, for the dot under
+  // each date — the whole reason the month is fetched in one request instead
+  // of one per day.
+  const eventDayKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const event of monthEvents) keys.add(toKey(new Date(event.start)));
+    return keys;
+  }, [monthEvents]);
+
+  const events = useMemo(
+    () => monthEvents.filter((event) => toKey(new Date(event.start)) === toKey(day)),
+    [monthEvents, day]
+  );
 
   const positioned = useMemo(() => layOutDay(events, dayStart), [events, dayStart]);
   const allDay = useMemo(() => events.filter((e) => e.allDay), [events]);
@@ -224,43 +286,104 @@ function CalendarView() {
         </button>
       </header>
 
-      {/* Date navigation */}
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 rounded-xl border border-navy-500/15 bg-white p-1">
-          <button
-            type="button"
-            onClick={() => shiftDay(-1)}
-            aria-label="Previous day"
-            className="flex size-10 cursor-pointer items-center justify-center rounded-lg text-navy-500 transition-colors hover:bg-navy-500/8"
-          >
-            <IconChevronLeft className="size-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => goto(new Date())}
-            className="min-h-10 cursor-pointer rounded-lg px-4 text-sm font-semibold text-navy-500 transition-colors hover:bg-navy-500/8"
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            onClick={() => shiftDay(1)}
-            aria-label="Next day"
-            className="flex size-10 cursor-pointer items-center justify-center rounded-lg text-navy-500 transition-colors hover:bg-navy-500/8"
-          >
-            <IconChevronRight className="size-5" />
-          </button>
+      {/* Month calendar — the familiar grid, one tap to jump anywhere. */}
+      <div className="mt-6 overflow-hidden rounded-2xl border border-navy-500/12 bg-white">
+        <div className="flex items-center justify-between border-b border-navy-500/10 px-4 py-3 sm:px-6">
+          <p className="font-serif text-lg text-navy-500 sm:text-xl">
+            {monthFmt.format(monthCursor)}
+          </p>
+
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={goToday}
+              className="mr-1 hidden min-h-9 cursor-pointer rounded-lg px-3 text-sm font-medium text-navy-500 transition-colors hover:bg-navy-500/8 sm:block"
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => shiftMonth(-1)}
+              aria-label="Previous month"
+              className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-navy-500 transition-colors hover:bg-navy-500/8"
+            >
+              <IconChevronLeft className="size-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => shiftMonth(1)}
+              aria-label="Next month"
+              className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-navy-500 transition-colors hover:bg-navy-500/8"
+            >
+              <IconChevronRight className="size-5" />
+            </button>
+          </div>
         </div>
 
-        <p className="font-serif text-lg text-navy-500">
-          {dayFmt.format(day)}
-          {isToday ? (
-            <span className="ml-2 rounded-full bg-gold-300/25 px-2 py-0.5 align-middle text-[11px] font-semibold uppercase tracking-[0.14em] text-gold-500">
-              Today
-            </span>
-          ) : null}
-        </p>
+        <div className="grid grid-cols-7 border-b border-navy-500/10 bg-navy-500/[0.03]">
+          {WEEKDAY_LABELS.map((label) => (
+            <div
+              key={label}
+              className="py-2 text-center text-[11px] font-semibold uppercase tracking-[0.1em] text-stone-500"
+            >
+              {label}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7">
+          {monthGrid.map((cellDate) => {
+            const key = toKey(cellDate);
+            const inMonth = cellDate.getMonth() === monthCursor.getMonth();
+            const isSelected = key === toKey(day);
+            const isCellToday = key === toKey(new Date());
+            const hasEvents = eventDayKeys.has(key);
+
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => goto(cellDate)}
+                aria-current={isSelected ? "date" : undefined}
+                className={`relative flex aspect-square min-h-11 cursor-pointer flex-col items-center justify-center gap-1 border-b border-r border-navy-500/[0.06] text-sm transition-colors duration-150 last:border-r-0 sm:aspect-auto sm:min-h-16 ${
+                  isSelected
+                    ? "bg-navy-500 font-semibold text-white"
+                    : inMonth
+                      ? "text-navy-500 hover:bg-navy-500/6"
+                      : "text-stone-400 hover:bg-navy-500/[0.04]"
+                }`}
+              >
+                <span
+                  className={
+                    isCellToday && !isSelected
+                      ? "flex size-6 items-center justify-center rounded-full border border-gold-500 font-semibold text-gold-600"
+                      : ""
+                  }
+                >
+                  {cellDate.getDate()}
+                </span>
+                {hasEvents ? (
+                  <span
+                    aria-hidden
+                    className={`size-1.5 rounded-full ${
+                      isSelected ? "bg-white" : "bg-gold-500"
+                    }`}
+                  />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      <p className="mt-4 font-serif text-lg text-navy-500">
+        {dayFmt.format(day)}
+        {isToday ? (
+          <span className="ml-2 rounded-full bg-gold-300/25 px-2 py-0.5 align-middle text-[11px] font-semibold uppercase tracking-[0.14em] text-gold-500">
+            Today
+          </span>
+        ) : null}
+      </p>
 
       {error ? (
         <p role="alert" className="mt-6 rounded-2xl bg-red-50 px-5 py-4 text-sm text-red-600">

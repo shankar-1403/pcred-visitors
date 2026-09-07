@@ -57,6 +57,15 @@ function formatTime(ms?: number | null) {
   });
 }
 
+/** "2026-09-09T14:30" in the viewer's own local time — what a datetime-local
+    input's value and min/max attributes require, built from local field
+    getters rather than toISOString() so it never drifts to UTC. */
+function toDateTimeLocal(ms: number) {
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /** "4m 12s" — how long the visitor has been standing at the door. */
 function useWaitingLabel(since?: number) {
   const [now, setNow] = useState(() => Date.now());
@@ -83,6 +92,10 @@ export default function VisitorsInbox() {
   const [decision, setDecision] = useState<Decision>("approved");
   const [note, setNote] = useState("");
   const [postponeMinutes, setPostponeMinutes] = useState(15);
+  /** null while a quick pick (15/30/60/120 min) is in effect; a real date once
+      the admin switches to picking an exact moment instead. */
+  const [postponeCustom, setPostponeCustom] = useState<string>("");
+  const [postponeCustomError, setPostponeCustomError] = useState("");
   const [respondingSince, setRespondingSince] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -116,6 +129,8 @@ export default function VisitorsInbox() {
     setDecision(initial);
     setNote("");
     setPostponeMinutes(15);
+    setPostponeCustom("");
+    setPostponeCustomError("");
     setRespondingSince(Date.now());
     setError("");
   };
@@ -128,17 +143,26 @@ export default function VisitorsInbox() {
       return;
     }
 
+    if (decision === "postponed" && postponeCustom && postponeCustomError) {
+      setError(postponeCustomError);
+      return;
+    }
+
     setSaving(true);
     setError("");
+
+    const postponedTo =
+      decision === "postponed"
+        ? postponeCustom
+          ? new Date(postponeCustom).getTime()
+          : Date.now() + postponeMinutes * 60 * 1000
+        : null;
 
     try {
       await respondToRequest(respondingTo.id, {
         status: decision,
         responseNote: note.trim().slice(0, 500),
-        postponedTo:
-          decision === "postponed"
-            ? Date.now() + postponeMinutes * 60 * 1000
-            : null,
+        postponedTo,
         respondedAt: Date.now(),
         respondedBy: user.uid,
         respondedByName:
@@ -288,17 +312,21 @@ export default function VisitorsInbox() {
               {decision === "postponed" ? (
                 <fieldset className="mt-5">
                   <legend className="mb-2 block text-sm font-medium text-navy-500">
-                    Ask them to come back in
+                    Ask them to come back
                   </legend>
                   <div className="flex flex-wrap gap-2">
                     {[15, 30, 60, 120].map((minutes) => (
                       <button
                         key={minutes}
                         type="button"
-                        onClick={() => setPostponeMinutes(minutes)}
-                        aria-pressed={postponeMinutes === minutes}
+                        onClick={() => {
+                          setPostponeMinutes(minutes);
+                          setPostponeCustom("");
+                          setPostponeCustomError("");
+                        }}
+                        aria-pressed={!postponeCustom && postponeMinutes === minutes}
                         className={`min-h-11 cursor-pointer rounded-xl border px-4 text-sm font-medium transition-colors duration-200 ${
-                          postponeMinutes === minutes
+                          !postponeCustom && postponeMinutes === minutes
                             ? "border-navy-500 bg-navy-500 text-white"
                             : "border-navy-500/20 text-navy-500 hover:bg-navy-500/6"
                         }`}
@@ -307,10 +335,53 @@ export default function VisitorsInbox() {
                       </button>
                     ))}
                   </div>
-                  <p className="mt-2 text-xs text-stone-500">
-                    The tablet will show{" "}
-                    {formatTime(respondingSince + postponeMinutes * 60 * 1000)}.
-                  </p>
+
+                  <div className="mt-3">
+                    <label
+                      htmlFor="postponeCustom"
+                      className="mb-1.5 block text-xs font-medium text-stone-600"
+                    >
+                      Or pick an exact date and time
+                    </label>
+                    <input
+                      id="postponeCustom"
+                      type="datetime-local"
+                      value={postponeCustom}
+                      min={toDateTimeLocal(respondingSince + 5 * 60_000)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setPostponeCustom(value);
+
+                        if (!value) {
+                          setPostponeCustomError("");
+                          return;
+                        }
+
+                        const picked = new Date(value).getTime();
+
+                        setPostponeCustomError(
+                          Number.isFinite(picked) && picked > Date.now()
+                            ? ""
+                            : "Please pick a time in the future."
+                        );
+                      }}
+                      className="min-h-11 w-full max-w-xs rounded-xl border border-navy-500/20 px-3 text-sm text-navy-500 outline-none focus:border-navy-500 sm:w-auto"
+                    />
+                  </div>
+
+                  {postponeCustomError ? (
+                    <p role="alert" className="mt-2 text-sm text-red-600">
+                      {postponeCustomError}
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-xs text-stone-500">
+                      The tablet will show{" "}
+                      {postponeCustom
+                        ? formatDateTime(new Date(postponeCustom).getTime())
+                        : formatTime(respondingSince + postponeMinutes * 60 * 1000)}
+                      .
+                    </p>
+                  )}
                 </fieldset>
               ) : null}
 
