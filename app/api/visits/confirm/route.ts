@@ -1,87 +1,53 @@
 import { NextResponse } from "next/server";
-import { createVisitEvent, HAS_CALENDAR_CONFIG } from "@/src/lib/google-calendar";
 import { DEFAULT_SLOT_MINUTES } from "@/src/lib/availability";
+import { bearerToken, rtdbGet, rtdbPush, rtdbSet, verifyIdToken } from "@/src/lib/rtdb-server";
 
 export const runtime = "nodejs";
-
-const RTDB_URL = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL;
-const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
 function seg(value: string) {
   return String(value ?? "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
 }
 
-/** Confirms the caller is a signed-in staff member, not the public kiosk. */
-async function verifyIdToken(idToken: string) {
-  if (!FIREBASE_API_KEY) throw new Error("Firebase API key is not configured.");
-
-  const response = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error("Invalid or expired sign-in. Please log in again.");
-  }
-
-  return response.json();
+interface VisitorRequestRecord {
+  staffId?: string;
+  visitorName?: string;
+  company?: string;
+  purpose?: string;
+  requestedFor?: number | null;
+  status?: string;
 }
 
 /**
- * Writes an approved visit into the staff member's calendar.
+ * Writes an approved visit into the staff member's own calendar.
  *
  * Separate from the approval itself: the approval is a database write the
  * browser already made, and the visitor has been told about it. A calendar
  * failure here must never undo that — it downgrades to "approved, not on the
  * calendar" rather than an error the visitor sees.
+ *
+ * The write carries the approver's own ID token, so it is authorised by the
+ * exact same database rule that let the approval itself through a moment ago
+ * — the staff member's own visit, or an admin acting on their behalf.
  */
 export async function POST(request: Request) {
   try {
-    const authorization = request.headers.get("authorization") ?? "";
-    const idToken = authorization.startsWith("Bearer ")
-      ? authorization.slice(7)
-      : "";
-
-    if (!idToken) {
-      return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-    }
-
+    const idToken = bearerToken(request);
     await verifyIdToken(idToken);
 
-    if (!HAS_CALENDAR_CONFIG) {
-      return NextResponse.json({ calendarEventId: null, skipped: "no-config" });
-    }
-
-    if (!RTDB_URL) throw new Error("Firebase database URL not configured.");
-
-    const requestId = seg(((await request.json()) as { requestId?: string }).requestId ?? "");
+    const requestId = seg(
+      ((await request.json()) as { requestId?: string }).requestId ?? ""
+    );
 
     if (!requestId) {
       return NextResponse.json({ error: "Missing requestId." }, { status: 400 });
     }
 
-    // Read the visit server-side rather than trusting the body — the times and
-    // the target calendar must come from the stored record.
-    const stored = await fetch(`${RTDB_URL}/visitor_requests/${requestId}.json`, {
-      cache: "no-store",
-    });
-
-    if (!stored.ok) throw new Error(`Visit lookup failed: ${stored.status}`);
-
-    const visit = (await stored.json()) as {
-      staffEmail?: string;
-      visitorName?: string;
-      visitorPhone?: string;
-      company?: string;
-      purpose?: string;
-      purposeNote?: string;
-      requestedFor?: number | null;
-      status?: string;
-    } | null;
+    // Read the visit server-side rather than trusting the body — the times
+    // and the target calendar must come from the stored record.
+    const visit = await rtdbGet<VisitorRequestRecord>(
+      `visitor_requests/${requestId}`,
+      idToken
+    );
 
     if (!visit || visit.status !== "approved") {
       return NextResponse.json(
@@ -90,35 +56,44 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!visit.staffEmail) {
-      return NextResponse.json({ calendarEventId: null, skipped: "no-calendar" });
+    if (!visit.staffId) {
+      return NextResponse.json({ calendarEventId: null, skipped: "no-staff" });
     }
 
     // "Meet now" still earns a calendar block, starting immediately.
     const start = visit.requestedFor ?? Date.now();
     const end = start + DEFAULT_SLOT_MINUTES * 60_000;
 
-    const calendarEventId = await createVisitEvent({
-      staffEmail: visit.staffEmail,
-      start,
-      end,
-      visitorName: visit.visitorName ?? "Visitor",
-      company: visit.company,
-      purpose: visit.purpose,
-      note: visit.purposeNote,
-      visitorPhone: visit.visitorPhone,
-    });
+    const calendarEventId = await rtdbPush(
+      `calendar_events/${visit.staffId}`,
+      {
+        title: `Visitor: ${visit.visitorName ?? "Visitor"}${
+          visit.company ? ` (${visit.company})` : ""
+        }`,
+        start,
+        end,
+        allDay: false,
+        isVisit: true,
+        ...(visit.purpose ? { location: visit.purpose } : {}),
+      },
+      idToken
+    );
 
-    if (calendarEventId) {
-      await fetch(`${RTDB_URL}/visitor_requests/${requestId}.json`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ calendarEventId }),
-      });
-    }
+    // Public mirror for the kiosk's free/busy check — timing only, no title.
+    await rtdbSet(
+      `busy_blocks/${visit.staffId}/${calendarEventId}`,
+      { start, end },
+      idToken
+    );
+
+    await rtdbSet(`visitor_requests/${requestId}/calendarEventId`, calendarEventId, idToken);
 
     return NextResponse.json({ calendarEventId });
   } catch (error) {
+    if (error instanceof Error && error.message === "NOT_SIGNED_IN") {
+      return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
+    }
+
     console.error("[visitor-app] confirm", error);
     return NextResponse.json(
       { error: "Could not add it to the calendar." },

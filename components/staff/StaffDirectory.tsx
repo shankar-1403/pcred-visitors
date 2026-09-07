@@ -22,7 +22,6 @@ const initialFormData = {
   password: "",
   accessRole: "staff" as "admin" | "staff",
   active: true,
-  useCalendar: true,
   hoursStart: DEFAULT_WORKING_HOURS.start,
   hoursEnd: DEFAULT_WORKING_HOURS.end,
   slotMinutes: String(DEFAULT_SLOT_MINUTES),
@@ -100,7 +99,6 @@ export default function StaffDirectory() {
       password: "",
       accessRole: "staff",
       active: member.active ?? true,
-      useCalendar: member.useCalendar ?? true,
       hoursStart: member.workingHours?.start ?? DEFAULT_WORKING_HOURS.start,
       hoursEnd: member.workingHours?.end ?? DEFAULT_WORKING_HOURS.end,
       slotMinutes: String(member.slotMinutes ?? DEFAULT_SLOT_MINUTES),
@@ -183,7 +181,6 @@ export default function StaffDirectory() {
         email: formData.email.trim().toLowerCase(),
         phone: formData.phone.trim(),
         active: formData.active,
-        useCalendar: formData.useCalendar,
         workingHours: {
           start: formData.hoursStart,
           end: formData.hoursEnd,
@@ -397,24 +394,9 @@ export default function StaffDirectory() {
                     <legend className="px-2 text-sm font-medium text-navy-500">
                       Availability
                     </legend>
-
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="useCalendar"
-                        name="useCalendar"
-                        checked={formData.useCalendar}
-                        onChange={handleChange}
-                        className="size-4 accent-navy-500"
-                      />
-                      <label htmlFor="useCalendar" className="text-sm text-navy-500">
-                        Read their Google Calendar for free/busy times
-                      </label>
-                    </div>
-                    <p className="mt-2 text-xs text-stone-500">
-                      Only busy blocks are read — never meeting titles,
-                      attendees or details. Untick for someone who keeps no
-                      calendar and the kiosk offers their working hours instead.
+                    <p className="text-xs text-stone-500">
+                      The kiosk offers visitors slots inside these hours,
+                      minus anything already on their calendar in this app.
                     </p>
 
                     <div className="mt-4 grid gap-4 sm:grid-cols-3">

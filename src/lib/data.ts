@@ -56,7 +56,7 @@ export function subscribeRole(
   }
 
   return onValue(
-    ref(db, `roles/${uid}`),
+    ref(db, `users/${uid}`),
     (snapshot) => onData((snapshot.val() as RoleRecord | null) ?? null),
     () => onData(null)
   );
@@ -195,8 +195,6 @@ export function subscribeRequest(
 
 export interface Availability {
   staffName: string;
-  /** "calendar" = real free/busy; "hours" = working hours only. */
-  source: "calendar" | "hours";
   freeNow: boolean;
   /** False when today is outside the configured working days. */
   openToday: boolean;
@@ -267,8 +265,6 @@ export interface CalendarEvent {
 
 export interface CalendarResult {
   events: CalendarEvent[];
-  /** False when Google Calendar has not been connected yet. */
-  configured: boolean;
 }
 
 async function authHeader(): Promise<Record<string, string>> {

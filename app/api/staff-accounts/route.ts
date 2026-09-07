@@ -92,7 +92,7 @@ export async function POST(request: Request) {
 
     // The role record is keyed by uid because that is what the database rules
     // can check — the staff directory is matched separately, by email.
-    await adminDb().ref(`roles/${uid}`).set({
+    await adminDb().ref(`users/${uid}`).set({
       role,
       email,
       createdAt: Date.now(),

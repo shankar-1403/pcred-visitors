@@ -1,70 +1,74 @@
 import { NextResponse } from "next/server";
 import {
-  createOwnEvent,
-  fetchEvents,
-  HAS_CALENDAR_CONFIG,
-} from "@/src/lib/google-calendar";
+  bearerToken,
+  resolveStaffId,
+  rtdbGet,
+  rtdbPush,
+  rtdbSet,
+  verifyIdToken,
+} from "@/src/lib/rtdb-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-
 /**
  * Every route here acts on **the caller's own calendar**.
  *
- * The address is taken from the verified sign-in token, never from the URL or
- * the body — otherwise anyone signed in could read a colleague's meeting
- * titles by passing a different email. That is also why being an admin grants
- * nothing extra here: an admin can see who visited whom, not what anyone's
+ * The staff record is resolved from the verified sign-in token, never from
+ * the URL or body — otherwise anyone signed in could read a colleague's
+ * meeting titles by passing a different email. Being an admin grants nothing
+ * extra here: an admin can see who visited whom, not what a colleague's
  * private meetings are called.
+ *
+ * This is the app's own calendar, not a connected outside one — events live
+ * entirely in this project's database. `calendar_events/{staffId}` holds full
+ * detail and is readable only by that staff member (or an admin, via the
+ * database rules); `busy_blocks/{staffId}` mirrors just the start/end of each
+ * event and is public-read, which is what the kiosk's availability check
+ * reads — so a stranger at the door can see *that* someone is busy, never
+ * *why*.
  */
-async function callerEmail(request: Request): Promise<string> {
-  if (!FIREBASE_API_KEY) throw new Error("Firebase API key is not configured.");
 
-  const authorization = request.headers.get("authorization") ?? "";
-  const idToken = authorization.startsWith("Bearer ")
-    ? authorization.slice(7)
-    : "";
-
-  if (!idToken) throw new Error("NOT_SIGNED_IN");
-
-  const response = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
-    }
-  );
-
-  if (!response.ok) throw new Error("NOT_SIGNED_IN");
-
-  const data = (await response.json()) as {
-    users?: { email?: string }[];
-  };
-
-  const email = data.users?.[0]?.email?.trim().toLowerCase();
-
-  if (!email) throw new Error("NOT_SIGNED_IN");
-
-  return email;
+interface CalendarEventRecord {
+  title: string;
+  start: number;
+  end: number;
+  allDay: boolean;
+  location?: string;
+  isVisit: boolean;
 }
 
-function unauthorized() {
-  return NextResponse.json(
-    { error: "Please sign in again." },
-    { status: 401 }
-  );
+async function callerContext(request: Request) {
+  const idToken = bearerToken(request);
+  const { email } = await verifyIdToken(idToken);
+  const staffId = await resolveStaffId(email);
+
+  if (!staffId) {
+    throw new Error("NOT_ON_DIRECTORY");
+  }
+
+  return { idToken, staffId };
+}
+
+function errorResponse(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message === "NOT_SIGNED_IN") {
+    return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
+  }
+
+  if (error instanceof Error && error.message === "NOT_ON_DIRECTORY") {
+    return NextResponse.json(
+      { error: "You're not on the staff directory yet — ask an admin to add you." },
+      { status: 403 }
+    );
+  }
+
+  console.error("[visitor-app] calendar", error);
+  return NextResponse.json({ error: fallback }, { status: 500 });
 }
 
 export async function GET(request: Request) {
   try {
-    const email = await callerEmail(request);
-
-    if (!HAS_CALENDAR_CONFIG) {
-      return NextResponse.json({ events: [], configured: false });
-    }
+    const { idToken, staffId } = await callerContext(request);
 
     const params = new URL(request.url).searchParams;
     const from = Number(params.get("from"));
@@ -80,33 +84,24 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Range too wide." }, { status: 400 });
     }
 
-    return NextResponse.json({
-      events: await fetchEvents(email, from, to),
-      configured: true,
-    });
-  } catch (error) {
-    if (error instanceof Error && error.message === "NOT_SIGNED_IN") {
-      return unauthorized();
-    }
-
-    console.error("[visitor-app] calendar GET", error);
-    return NextResponse.json(
-      { error: "Could not load your calendar." },
-      { status: 500 }
+    const stored = await rtdbGet<Record<string, CalendarEventRecord>>(
+      `calendar_events/${staffId}`,
+      idToken
     );
+
+    const events = Object.entries(stored ?? {})
+      .map(([id, event]) => ({ id, ...event }))
+      .filter((event) => event.end > from && event.start < to);
+
+    return NextResponse.json({ events });
+  } catch (error) {
+    return errorResponse(error, "Could not load your calendar.");
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const email = await callerEmail(request);
-
-    if (!HAS_CALENDAR_CONFIG) {
-      return NextResponse.json(
-        { error: "Google Calendar isn't connected yet." },
-        { status: 501 }
-      );
-    }
+    const { idToken, staffId } = await callerContext(request);
 
     const body = (await request.json()) as {
       title?: string;
@@ -118,6 +113,7 @@ export async function POST(request: Request) {
     const title = String(body.title ?? "").trim().slice(0, 200);
     const start = Number(body.start);
     const end = Number(body.end);
+    const location = String(body.location ?? "").trim().slice(0, 200);
 
     if (!title) {
       return NextResponse.json({ error: "Give it a title." }, { status: 400 });
@@ -137,24 +133,23 @@ export async function POST(request: Request) {
       );
     }
 
-    const id = await createOwnEvent({
-      staffEmail: email,
+    const record: CalendarEventRecord = {
       title,
       start,
       end,
-      location: String(body.location ?? "").trim().slice(0, 200) || undefined,
-    });
+      allDay: false,
+      isVisit: false,
+      ...(location ? { location } : {}),
+    };
+
+    const id = await rtdbPush(`calendar_events/${staffId}`, record, idToken);
+
+    // The public mirror carries only the timing — never the title — so the
+    // kiosk's free/busy check can never leak what the meeting is about.
+    await rtdbSet(`busy_blocks/${staffId}/${id}`, { start, end }, idToken);
 
     return NextResponse.json({ id });
   } catch (error) {
-    if (error instanceof Error && error.message === "NOT_SIGNED_IN") {
-      return unauthorized();
-    }
-
-    console.error("[visitor-app] calendar POST", error);
-    return NextResponse.json(
-      { error: "Could not add that to your calendar." },
-      { status: 500 }
-    );
+    return errorResponse(error, "Could not add that to your calendar.");
   }
 }

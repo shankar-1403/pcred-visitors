@@ -12,7 +12,6 @@
     "@tabler/icons-react": "^3.46.0",
     "firebase": "^12.18.0",
     "firebase-admin": "^14.3.0",
-    "google-auth-library": "^11.0.2",
     "motion": "^13.2.0",
     "next": "16.3.4",
     "react": "19.2.8",

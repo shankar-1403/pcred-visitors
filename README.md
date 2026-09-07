@@ -175,61 +175,35 @@ timeline with overlapping meetings split into side-by-side lanes, a live "now"
 line, and day-to-day navigation. The date is in the URL (`?date=YYYY-MM-DD`),
 so a day can be linked and the back button steps through days.
 
-They can add events, which go straight into their Google Calendar. Visits
-booked at the front desk appear here automatically, marked in gold so they read
-apart from meetings the person scheduled themselves.
+They can add events, which are stored entirely in this app's own database —
+there is no outside calendar to connect. Visits booked at the front desk
+appear here automatically, marked in gold so they read apart from meetings the
+person scheduled themselves.
 
-**Two different levels of access, deliberately:**
+**Two different levels of access, deliberately, on two different database
+nodes:**
 
-| | Reads | Who sees it |
+| Node | Holds | Who can read it |
 |---|---|---|
-| Kiosk availability | `freeBusy` — busy blocks only, no titles | Anyone at the door |
-| `/staff/calendar` | full events, with titles | Only that person |
+| `calendar_events/{staffId}` | Full detail — title, location | Only that person, or an admin |
+| `busy_blocks/{staffId}` | Just the start and end time | Anyone — this is what the kiosk reads |
 
-`/api/calendar` takes the address from the **verified sign-in token**, never
-from the URL or body. Being an admin grants nothing extra here: an admin can
-see who visited whom, not what a colleague's private meetings are called.
+Every event written to `calendar_events` is mirrored into `busy_blocks` with
+the title stripped out. The kiosk's availability check (`/api/availability`)
+only ever touches `busy_blocks` — it has no path to the full event at all — so
+a stranger at the front desk can see *that* someone is busy, never *why*.
+
+`/api/calendar` resolves which calendar is "yours" from the **verified sign-in
+token**, matched against your staff directory record — never from the URL or
+body. Being an admin grants nothing extra here: an admin can see who visited
+whom, not what a colleague's private meetings are called.
 
 ## Calendar availability
 
-The kiosk shows the visitor when the person they want to meet is actually free,
-and lets them book a slot.
-
-Availability is read through Google Calendar's **free/busy** endpoint, never
-`events.list`. That returns only the blocks of time someone is occupied — no
-titles, no attendees, no details. A stranger at the front desk must never be
-able to infer who you are meeting.
-
-When a booked visit is approved, the app writes it into the staff member's
-calendar so the slot is blocked and nobody double-books it.
-
-### Setting it up
-
-1. In the Google Cloud project behind your Firebase project, **enable the
-   Google Calendar API** and create a **service account**. Download its JSON key.
-2. In the **Google Workspace admin console** → Security → API controls →
-   **Domain-wide delegation**, add the service account's client ID with these
-   scopes:
-
-   ```
-   https://www.googleapis.com/auth/calendar.freebusy
-   https://www.googleapis.com/auth/calendar.events
-   ```
-
-   This is what lets the app read staff calendars without every person
-   clicking through an OAuth screen.
-3. Add to `.env.local`:
-
-   ```
-   GOOGLE_CALENDAR_CLIENT_EMAIL=...
-   GOOGLE_CALENDAR_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-   OFFICE_TIMEZONE=Asia/Kolkata
-   ```
-
-Leave these unset and the app falls back to **working hours** — each staff
-record has its own from/until and slot length, set on `/staff`. The same
-fallback catches a calendar outage, so a Google problem can never stop someone
-checking in.
+The kiosk shows the visitor when the person they want to meet is actually
+free, and lets them book a slot — computed from their working hours (set per
+person on the directory) minus whatever is already in `busy_blocks` for them.
+No setup required and nothing outside this app's own database is involved.
 
 ## Data model (Realtime Database)
 
@@ -237,7 +211,6 @@ checking in.
 staff/{staffId}
   name, designation, department, email, phone
   active                       // hidden from the kiosk when false
-  useCalendar                  // read their free/busy; off = working hours only
   workingHours { start, end, days }
   slotMinutes                  // 15 / 30 / 60
 
@@ -250,6 +223,12 @@ visitor_requests/{requestId}
   status     // pending | approved | declined | postponed
   responseNote, postponedTo
   createdAt, respondedAt, respondedBy, respondedByName
+
+calendar_events/{staffId}/{eventId}   // full detail — owner or admin only
+  title, start, end, allDay, location, isVisit
+
+busy_blocks/{staffId}/{eventId}       // public mirror — timing only
+  start, end
 ```
 
 `status`, `createdAt` and the staff fields are stamped by the API route, never

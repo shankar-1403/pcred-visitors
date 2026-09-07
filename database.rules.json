@@ -1,10 +1,10 @@
 {
   "rules": {
-    "roles": {
-      "//": "Who is an admin. Keyed by auth uid because that is what these rules can check — the staff directory is matched separately, by email. Written only by the server (Admin SDK) or an existing admin, so nobody can promote themselves.",
+    "users": {
+      "//": "Who is an admin. Keyed by auth uid because that is what these rules can check — the staff directory is matched separately, by email. Written only by the server (Admin SDK, where configured) or an existing admin, so nobody can promote themselves.",
       ".read": "auth != null",
       "$uid": {
-        ".write": "root.child('roles').child(auth.uid).child('role').val() === 'admin'",
+        ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
         "role": {
           ".validate": "newData.isString() && newData.val().matches(/^(admin|staff)$/)"
         }
@@ -14,19 +14,19 @@
     "staff": {
       "//": "Public read so the unauthenticated door tablet can list who is in the office. Admins only for writes. Never put anything private in this node.",
       ".read": true,
-      ".write": "root.child('roles').child(auth.uid).child('role').val() === 'admin'",
+      ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
       ".indexOn": ["active", "department", "name"]
     },
 
     "visitor_requests": {
       "//": "An admin may read the whole log. Everyone else may only run a query constrained to their own address — an unconstrained read from a non-admin is refused, so one staff member cannot see who visited another.",
-      ".read": "root.child('roles').child(auth.uid).child('role').val() === 'admin' || (query.orderByChild === 'staffEmail' && query.equalTo === auth.token.email)",
+      ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin' || (query.orderByChild === 'staffEmail' && query.equalTo === auth.token.email)",
       ".indexOn": ["staffId", "staffEmail", "status", "createdAt"],
 
       "$requestId": {
         "//": "The kiosk is anonymous: it may create a request and read back the single push id it just created, but never edit one. Staff may respond to their own; admins to any.",
         ".read": true,
-        ".write": "!data.exists() || root.child('roles').child(auth.uid).child('role').val() === 'admin' || data.child('staffEmail').val() === auth.token.email",
+        ".write": "!data.exists() || root.child('users').child(auth.uid).child('role').val() === 'admin' || data.child('staffEmail').val() === auth.token.email",
 
         ".validate": "newData.hasChildren(['visitorName', 'visitorPhone', 'staffId', 'status', 'createdAt'])",
 
@@ -36,6 +36,22 @@
         "visitorName": { ".validate": "newData.isString() && newData.val().length <= 120" },
         "visitorPhone": { ".validate": "newData.isString() && newData.val().length <= 40" },
         "createdAt": { ".validate": "newData.isNumber()" }
+      }
+    },
+
+    "calendar_events": {
+      "//": "This app's own calendar for each staff member — full detail (titles, locations). Readable and writable only by that person (matched by email against their staff record) or an admin. The kiosk never reads this node; it only ever sees busy_blocks below.",
+      "$staffId": {
+        ".read": "auth != null && (root.child('staff').child($staffId).child('email').val() === auth.token.email || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (root.child('staff').child($staffId).child('email').val() === auth.token.email || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+      }
+    },
+
+    "busy_blocks": {
+      "//": "Public mirror of calendar_events carrying only start/end — never a title. This is what the door tablet reads to show when someone is free, without ever being able to see what their meetings are about.",
+      ".read": true,
+      "$staffId": {
+        ".write": "auth != null && (root.child('staff').child($staffId).child('email').val() === auth.token.email || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     },
 

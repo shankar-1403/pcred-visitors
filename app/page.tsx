@@ -891,17 +891,6 @@ function AvailabilityHeadline({
     );
   }
 
-  // Working-hours mode has no idea what they are actually doing, so it must
-  // not claim they are free or in a meeting.
-  if (availability.source === "hours") {
-    return (
-      <p className="text-base text-white/60">
-        {who} doesn&rsquo;t share a calendar — pick a time and they&rsquo;ll
-        confirm.
-      </p>
-    );
-  }
-
   // Outside working days there are no slots to offer, and saying "busy for the
   // rest of today" would be plain wrong — the office simply isn't open.
   if (!availability.openToday) {

@@ -92,7 +92,6 @@ function CalendarView() {
   const [result, setResult] = useState<{
     key: number;
     events: CalendarEvent[];
-    configured: boolean;
     error: string;
   } | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
@@ -102,7 +101,6 @@ function CalendarView() {
   // Memoised so the empty fallback is not a fresh array on every render, which
   // would re-run the day layout continuously.
   const events = useMemo(() => fresh?.events ?? [], [fresh]);
-  const configured = fresh?.configured ?? true;
   const error = fresh?.error ?? "";
   const loading = Boolean(user) && fresh === null;
 
@@ -122,7 +120,6 @@ function CalendarView() {
         setResult({
           key: dayStart,
           events: data.events,
-          configured: data.configured,
           error: "",
         });
       })
@@ -131,7 +128,6 @@ function CalendarView() {
         setResult({
           key: dayStart,
           events: [],
-          configured: true,
           error:
             err instanceof Error
               ? err.message
@@ -265,14 +261,6 @@ function CalendarView() {
           ) : null}
         </p>
       </div>
-
-      {!configured ? (
-        <p className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
-          Google Calendar isn&rsquo;t connected yet, so there&rsquo;s nothing to
-          show. Visitor bookings still work — they just aren&rsquo;t written to
-          a calendar.
-        </p>
-      ) : null}
 
       {error ? (
         <p role="alert" className="mt-6 rounded-2xl bg-red-50 px-5 py-4 text-sm text-red-600">
@@ -449,8 +437,7 @@ function CalendarView() {
                 <div>
                   <h2 className="text-xl font-bold text-navy-500">Add event</h2>
                   <p className="mt-1 text-sm text-stone-500">
-                    Goes straight into your Google Calendar on{" "}
-                    {dayFmt.format(day)}.
+                    Added to your calendar on {dayFmt.format(day)}.
                   </p>
                 </div>
                 <button

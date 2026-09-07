@@ -13,8 +13,7 @@ export interface Staff {
   email?: string;
   phone?: string;
   active?: boolean;
-  /** Read their Google Calendar free/busy. Off = working hours only. */
-  useCalendar?: boolean;
+  /** Booked slots come from their own in-app calendar, inside these hours. */
   workingHours?: { start: string; end: string; days: number[] };
   slotMinutes?: number;
   createdAt?: number;

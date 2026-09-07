@@ -50,6 +50,6 @@ export const adminDb = () => getDatabase(adminApp());
 
 /** True when this uid is recorded as an admin. */
 export async function isAdminUid(uid: string): Promise<boolean> {
-  const snapshot = await adminDb().ref(`roles/${uid}/role`).get();
+  const snapshot = await adminDb().ref(`users/${uid}/role`).get();
   return snapshot.val() === "admin";
 }
