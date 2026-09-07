@@ -212,17 +212,17 @@ export default function StaffDirectory() {
   }
 
   const inputClass =
-    "border border-navy-500 rounded-4xl w-full py-2 px-3 text-navy-500 outline-none focus:ring-2 focus:ring-gold-300/40";
-  const labelClass = "mb-2 block text-sm font-medium text-navy-500";
+    "border border-navy-500 dark:border-white/25 rounded-4xl w-full py-2 px-3 text-navy-500 dark:text-white dark:placeholder:text-white/30 outline-none focus:ring-2 focus:ring-gold-300/40";
+  const labelClass = "mb-2 block text-sm font-medium text-navy-500 dark:text-white";
 
   return (
     <div className="max-w-7xl mx-auto px-4 pt-20 pb-16 space-y-6">
       <section className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-navy-500">
+          <h1 className="text-2xl font-semibold text-navy-500 dark:text-white">
             Staff directory
           </h1>
-          <p className="mt-1 text-sm text-stone-500">
+          <p className="mt-1 text-sm text-stone-500 dark:text-white/50">
             Everyone listed here appears on the front-desk tablet. Give
             someone a login email and their own visitors alert them directly.
           </p>
@@ -237,26 +237,26 @@ export default function StaffDirectory() {
       </section>
 
       {success ? (
-        <p className="rounded-4xl bg-green-50 px-4 py-3 text-sm text-green-700">
+        <p className="rounded-4xl bg-green-50 dark:bg-green-400/15 px-4 py-3 text-sm text-green-700 dark:text-green-300">
           {success}
         </p>
       ) : null}
 
       {!modalOpen && error ? (
-        <p className="rounded-4xl bg-red-50 px-4 py-3 text-sm text-red-600">
+        <p className="rounded-4xl bg-red-50 dark:bg-red-400/15 px-4 py-3 text-sm text-red-600 dark:text-red-300">
           {error}
         </p>
       ) : null}
 
       <div className="relative max-w-sm">
-        <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-stone-500" />
+        <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-stone-500 dark:text-white/50" />
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name, role or department"
           aria-label="Search staff"
-          className="w-full rounded-xl border border-navy-500/20 bg-white py-2 pl-9 pr-3 text-sm text-navy-500 outline-none focus:border-navy-500"
+          className="w-full rounded-xl border border-navy-500/20 dark:border-white/15 bg-white dark:bg-surface-dark-card py-2 pl-9 pr-3 text-sm text-navy-500 dark:text-white outline-none focus:border-navy-500"
         />
       </div>
 
@@ -279,17 +279,17 @@ export default function StaffDirectory() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 16 }}
               transition={{ duration: 0.25 }}
-              className="relative z-10 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-4xl bg-white shadow-2xl"
+              className="relative z-10 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-4xl bg-white dark:bg-surface-dark-card shadow-2xl"
             >
-              <div className="sticky top-0 flex items-center justify-between border-b border-navy-500/10 bg-white px-6 py-5">
-                <h2 className="text-xl font-bold text-navy-500">
+              <div className="sticky top-0 flex items-center justify-between border-b border-navy-500/10 dark:border-white/10 bg-white dark:bg-surface-dark-card px-6 py-5">
+                <h2 className="text-xl font-bold text-navy-500 dark:text-white">
                   {editingStaffId ? "Edit staff member" : "Add staff member"}
                 </h2>
                 <button
                   type="button"
                   onClick={handleCloseModal}
                   aria-label="Close"
-                  className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-navy-500/15 text-navy-500 transition-colors hover:bg-navy-500/10"
+                  className="flex size-9 cursor-pointer items-center justify-center rounded-full border border-navy-500/15 dark:border-white/10 text-navy-500 dark:text-white transition-colors hover:bg-navy-500/10 dark:bg-white/10"
                 >
                   <IconX className="size-5" />
                 </button>
@@ -298,7 +298,7 @@ export default function StaffDirectory() {
               <div className="p-6">
                 <form className="space-y-4" onSubmit={handleSave}>
                   {error ? (
-                    <p className="rounded-4xl bg-red-50 px-4 py-3 text-sm text-red-600">
+                    <p className="rounded-4xl bg-red-50 dark:bg-red-400/15 px-4 py-3 text-sm text-red-600 dark:text-red-300">
                       {error}
                     </p>
                   ) : null}
@@ -378,11 +378,11 @@ export default function StaffDirectory() {
                     </div>
                   </div>
 
-                  <fieldset className="rounded-2xl border border-navy-500/15 p-4">
-                    <legend className="px-2 text-sm font-medium text-navy-500">
+                  <fieldset className="rounded-2xl border border-navy-500/15 dark:border-white/10 p-4">
+                    <legend className="px-2 text-sm font-medium text-navy-500 dark:text-white">
                       Their login
                     </legend>
-                    <p className="text-xs leading-relaxed text-stone-500">
+                    <p className="text-xs leading-relaxed text-stone-500 dark:text-white/50">
                       {editingStaffId === null ? (
                         <>
                           Set a password here and their login is created the
@@ -420,7 +420,7 @@ export default function StaffDirectory() {
                           placeholder="At least 8 characters"
                           className={inputClass}
                         />
-                        <p className="mt-2 text-xs text-stone-500">
+                        <p className="mt-2 text-xs text-stone-500 dark:text-white/50">
                           Shown in plain text on purpose — you have to read it
                           out to them. Ask them to change it once they sign in.
                         </p>
@@ -446,7 +446,7 @@ export default function StaffDirectory() {
                         </select>
 
                         {editingStaffId !== null ? (
-                          <label className="mt-2 flex items-center gap-2 text-xs text-stone-600">
+                          <label className="mt-2 flex items-center gap-2 text-xs text-stone-600 dark:text-white/60">
                             <input
                               type="checkbox"
                               name="changeAccess"
@@ -471,7 +471,7 @@ export default function StaffDirectory() {
                       onChange={handleChange}
                       className="size-4 accent-navy-500"
                     />
-                    <label htmlFor="active" className="text-sm font-medium text-navy-500">
+                    <label htmlFor="active" className="text-sm font-medium text-navy-500 dark:text-white">
                       Active (shown on the front-desk tablet)
                     </label>
                   </div>
@@ -492,17 +492,17 @@ export default function StaffDirectory() {
         ) : null}
       </AnimatePresence>
 
-      <section className="max-w-full overflow-hidden rounded-xl border border-navy-500/15 bg-white">
+      <section className="max-w-full overflow-hidden rounded-xl border border-navy-500/15 dark:border-white/10 bg-white dark:bg-surface-dark-card">
         {/* Phones get cards. A six-column table at 375px is a sideways scroll
             with three words per line — technically present, practically
             unusable. */}
-        <ul className="divide-y divide-navy-500/10 sm:hidden">
+        <ul className="divide-y divide-navy-500 dark:divide-white/10/10 dark:divide-white/10 sm:hidden">
           {staffLoading ? (
-            <li className="px-4 py-6 text-center text-sm text-stone-500">
+            <li className="px-4 py-6 text-center text-sm text-stone-500 dark:text-white/50">
               Loading staff…
             </li>
           ) : filtered.length === 0 ? (
-            <li className="px-4 py-6 text-center text-sm text-stone-500">
+            <li className="px-4 py-6 text-center text-sm text-stone-500 dark:text-white/50">
               {staff.length === 0
                 ? "No staff added yet — add someone so the front-desk tablet has a list."
                 : "No staff match that search."}
@@ -512,27 +512,27 @@ export default function StaffDirectory() {
               <li key={member.id} className="p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold text-navy-500">
+                    <p className="truncate font-semibold text-navy-500 dark:text-white">
                       {member.name || "Unnamed"}
                     </p>
-                    <p className="mt-0.5 text-sm leading-snug text-stone-500">
+                    <p className="mt-0.5 text-sm leading-snug text-stone-500 dark:text-white/50">
                       {[member.designation, member.department]
                         .filter(Boolean)
                         .join(" · ") || "—"}
                     </p>
                   </div>
                   {member.active ?? true ? (
-                    <span className="shrink-0 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-600">
+                    <span className="shrink-0 rounded-full bg-green-50 dark:bg-green-400/15 px-2 py-0.5 text-xs font-semibold text-green-600 dark:text-green-300">
                       Active
                     </span>
                   ) : (
-                    <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-400">
+                    <span className="shrink-0 rounded-full bg-gray-100 dark:bg-white/10 px-2 py-0.5 text-xs font-semibold text-gray-400 dark:text-white/40">
                       Inactive
                     </span>
                   )}
                 </div>
 
-                <p className="mt-2 truncate text-xs text-stone-500">
+                <p className="mt-2 truncate text-xs text-stone-500 dark:text-white/50">
                   {member.email || "No login"}
                 </p>
 
@@ -547,7 +547,7 @@ export default function StaffDirectory() {
                   <button
                     type="button"
                     onClick={() => handleToggleActive(member)}
-                    className="min-h-11 flex-1 cursor-pointer rounded-xl border border-navy-500/25 text-sm font-medium text-navy-500 transition-colors hover:bg-navy-500/8"
+                    className="min-h-11 flex-1 cursor-pointer rounded-xl border border-navy-500/25 dark:border-white/15 text-sm font-medium text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
                   >
                     {member.active ?? true ? "Deactivate" : "Activate"}
                   </button>
@@ -559,7 +559,7 @@ export default function StaffDirectory() {
 
         <div className="hidden overflow-x-auto sm:block">
           <table className="w-full min-w-190 table-auto text-left text-xs sm:text-sm">
-            <thead className="border-b border-slate-800 bg-navy-500 text-sm uppercase text-white">
+            <thead className="border-b border-slate-800 dark:border-white/10 bg-navy-500 text-sm uppercase text-white">
               <tr>
                 <th className="px-4 py-2 font-medium whitespace-nowrap">Name</th>
                 <th className="px-4 py-2 font-medium whitespace-nowrap">Designation</th>
@@ -569,16 +569,16 @@ export default function StaffDirectory() {
                 <th className="px-4 py-2 font-medium whitespace-nowrap">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-navy-500">
+            <tbody className="divide-y divide-navy-500 dark:divide-white/10">
               {staffLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-stone-500">
+                  <td colSpan={6} className="px-4 py-6 text-center text-stone-500 dark:text-white/50">
                     Loading staff…
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-stone-500">
+                  <td colSpan={6} className="px-4 py-6 text-center text-stone-500 dark:text-white/50">
                     {staff.length === 0
                       ? "No staff added yet — add someone so the front-desk tablet has a list."
                       : "No staff match that search."}
@@ -586,34 +586,34 @@ export default function StaffDirectory() {
                 </tr>
               ) : (
                 tablePageItems.map((member) => (
-                  <tr key={member.id} className="text-sm text-navy-500">
+                  <tr key={member.id} className="text-sm text-navy-500 dark:text-white">
                     <td className="max-w-xs truncate px-4 py-2">
                       {member.name || "Unnamed"}
                     </td>
-                    <td className="px-4 py-2 text-stone-500">
+                    <td className="px-4 py-2 text-stone-500 dark:text-white/50">
                       {member.designation || "—"}
                     </td>
-                    <td className="px-4 py-2 text-stone-500">
+                    <td className="px-4 py-2 text-stone-500 dark:text-white/50">
                       {member.department || "—"}
                     </td>
                     <td className="px-4 py-2">
                       {member.email ? (
-                        <span className="text-xs text-stone-500">
+                        <span className="text-xs text-stone-500 dark:text-white/50">
                           {member.email}
                         </span>
                       ) : (
-                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                        <span className="rounded-full bg-amber-50 dark:bg-amber-400/15 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
                           No login
                         </span>
                       )}
                     </td>
                     <td className="px-4 py-2">
                       {member.active ?? true ? (
-                        <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-600">
+                        <span className="rounded-full bg-green-50 dark:bg-green-400/15 px-2 py-0.5 text-xs font-semibold text-green-600 dark:text-green-300">
                           Active
                         </span>
                       ) : (
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-400">
+                        <span className="rounded-full bg-gray-100 dark:bg-white/10 px-2 py-0.5 text-xs font-semibold text-gray-400 dark:text-white/40">
                           Inactive
                         </span>
                       )}
@@ -630,7 +630,7 @@ export default function StaffDirectory() {
                         <button
                           type="button"
                           onClick={() => handleToggleActive(member)}
-                          className="cursor-pointer rounded-xl border border-navy-500/25 px-3 py-1 text-xs text-navy-500 transition-colors hover:bg-navy-500/10"
+                          className="cursor-pointer rounded-xl border border-navy-500/25 dark:border-white/15 px-3 py-1 text-xs text-navy-500 dark:text-white transition-colors hover:bg-navy-500/10 dark:bg-white/10"
                         >
                           {member.active ?? true ? "Deactivate" : "Activate"}
                         </button>

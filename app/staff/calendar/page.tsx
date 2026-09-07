@@ -243,8 +243,8 @@ function CalendarView() {
     <div className="mx-auto max-w-5xl px-4 pt-8 pb-16">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-serif text-2xl text-navy-500">My calendar</h1>
-          <p className="mt-1 text-sm text-stone-500">
+          <h1 className="font-serif text-2xl text-navy-500 dark:text-white">My calendar</h1>
+          <p className="mt-1 text-sm text-stone-500 dark:text-white/50">
             {user?.email ? `Signed in as ${user.email}` : "Your own schedule"} —
             visitor bookings appear here automatically.
           </p>
@@ -261,9 +261,9 @@ function CalendarView() {
       </header>
 
       {/* Month calendar — the familiar grid, one tap to jump anywhere. */}
-      <div className="mt-6 overflow-hidden rounded-2xl border border-navy-500/12 bg-white">
-        <div className="flex items-center justify-between border-b border-navy-500/10 px-4 py-3 sm:px-6">
-          <p className="font-serif text-lg text-navy-500 sm:text-xl">
+      <div className="mt-6 overflow-hidden rounded-2xl border border-navy-500/12 bg-white dark:bg-surface-dark-card">
+        <div className="flex items-center justify-between border-b border-navy-500/10 dark:border-white/10 px-4 py-3 sm:px-6">
+          <p className="font-serif text-lg text-navy-500 dark:text-white sm:text-xl">
             {monthFmt.format(monthCursor)}
           </p>
 
@@ -271,7 +271,7 @@ function CalendarView() {
             <button
               type="button"
               onClick={goToday}
-              className="mr-1 hidden min-h-9 cursor-pointer rounded-lg px-3 text-sm font-medium text-navy-500 transition-colors hover:bg-navy-500/8 sm:block"
+              className="mr-1 hidden min-h-9 cursor-pointer rounded-lg px-3 text-sm font-medium text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8 sm:block"
             >
               Today
             </button>
@@ -279,7 +279,7 @@ function CalendarView() {
               type="button"
               onClick={() => shiftMonth(-1)}
               aria-label="Previous month"
-              className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-navy-500 transition-colors hover:bg-navy-500/8"
+              className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
             >
               <IconChevronLeft className="size-5" />
             </button>
@@ -287,18 +287,18 @@ function CalendarView() {
               type="button"
               onClick={() => shiftMonth(1)}
               aria-label="Next month"
-              className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-navy-500 transition-colors hover:bg-navy-500/8"
+              className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
             >
               <IconChevronRight className="size-5" />
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-7 border-b border-navy-500/10 bg-navy-500/[0.03]">
+        <div className="grid grid-cols-7 border-b border-navy-500/10 dark:border-white/10 bg-navy-500/[0.03]">
           {WEEKDAY_LABELS.map((label) => (
             <div
               key={label}
-              className="py-2 text-center text-[11px] font-semibold uppercase tracking-[0.1em] text-stone-500"
+              className="py-2 text-center text-[11px] font-semibold uppercase tracking-[0.1em] text-stone-500 dark:text-white/50"
             >
               {label}
             </div>
@@ -326,7 +326,7 @@ function CalendarView() {
                   isSelected
                     ? "bg-navy-500 font-semibold text-white"
                     : inMonth
-                      ? "text-navy-500 hover:bg-navy-500/6"
+                      ? "text-navy-500 dark:text-white hover:bg-navy-500/6 dark:hover:bg-white/6"
                       : "text-stone-400 hover:bg-navy-500/[0.04]"
                 }`}
               >
@@ -343,7 +343,7 @@ function CalendarView() {
                   <span
                     aria-hidden
                     className={`size-1.5 rounded-full ${
-                      isSelected ? "bg-white" : "bg-gold-500"
+                      isSelected ? "bg-white dark:bg-surface-dark-card" : "bg-gold-500"
                     }`}
                   />
                 ) : null}
@@ -354,7 +354,7 @@ function CalendarView() {
       </div>
 
       {error ? (
-        <p role="alert" className="mt-6 rounded-2xl bg-red-50 px-5 py-4 text-sm text-red-600">
+        <p role="alert" className="mt-6 rounded-2xl bg-red-50 dark:bg-red-400/15 px-5 py-4 text-sm text-red-600 dark:text-red-300">
           {error}
         </p>
       ) : null}
@@ -387,10 +387,10 @@ function CalendarView() {
               role="dialog"
               aria-modal="true"
               aria-label={dayFmt.format(day)}
-              className="relative z-10 max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-4xl bg-white shadow-2xl"
+              className="relative z-10 max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-4xl bg-white dark:bg-surface-dark-card shadow-2xl"
             >
-              <div className="sticky top-0 flex items-center justify-between border-b border-navy-500/10 bg-white px-6 py-5">
-                <p className="font-serif text-lg text-navy-500">
+              <div className="sticky top-0 flex items-center justify-between border-b border-navy-500/10 dark:border-white/10 bg-white dark:bg-surface-dark-card px-6 py-5">
+                <p className="font-serif text-lg text-navy-500 dark:text-white">
                   {dayFmt.format(day)}
                   {isToday ? (
                     <span className="ml-2 rounded-full bg-gold-300/25 px-2 py-0.5 align-middle text-[11px] font-semibold uppercase tracking-[0.14em] text-gold-500">
@@ -402,7 +402,7 @@ function CalendarView() {
                   type="button"
                   onClick={() => setDayModalOpen(false)}
                   aria-label="Close"
-                  className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-navy-500/15 text-navy-500 transition-colors hover:bg-navy-500/10"
+                  className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-navy-500/15 dark:border-white/10 text-navy-500 dark:text-white transition-colors hover:bg-navy-500/10 dark:bg-white/10"
                 >
                   <IconX className="size-5" />
                 </button>
@@ -419,7 +419,7 @@ function CalendarView() {
                 </div>
               ) : events.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
-                  <p className="text-sm font-medium text-navy-500">
+                  <p className="text-sm font-medium text-navy-500 dark:text-white">
                     Nothing scheduled {isToday ? "today" : "this day"}.
                   </p>
                   <button
@@ -428,14 +428,14 @@ function CalendarView() {
                       setDayModalOpen(false);
                       setAddOpen(true);
                     }}
-                    className="min-h-10 cursor-pointer rounded-lg border border-navy-500/20 px-4 text-sm font-medium text-navy-500 transition-colors hover:bg-navy-500/8"
+                    className="min-h-10 cursor-pointer rounded-lg border border-navy-500/20 dark:border-white/15 px-4 text-sm font-medium text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
                   >
                     Add an event
                   </button>
                 </div>
               ) : (
                 <>
-                  <ul className="divide-y divide-navy-500/8">
+                  <ul className="divide-y divide-navy-500 dark:divide-white/10/8">
                     {[...events]
                       .sort((a, b) => a.start - b.start)
                       .map((event) => {
@@ -449,7 +449,7 @@ function CalendarView() {
                               isNow ? "bg-maroon-500/[0.04]" : ""
                             }`}
                           >
-                            <div className="w-16 shrink-0 pt-0.5 text-right text-sm tabular-nums text-stone-600">
+                            <div className="w-16 shrink-0 pt-0.5 text-right text-sm tabular-nums text-stone-600 dark:text-white/60">
                               {event.allDay ? "All day" : timeFmt.format(event.start)}
                             </div>
 
@@ -463,7 +463,7 @@ function CalendarView() {
                             <div className="min-w-0 flex-1">
                               <p
                                 className={`flex items-center gap-1.5 text-sm font-semibold ${
-                                  event.isVisit ? "text-gold-700" : "text-navy-500"
+                                  event.isVisit ? "text-gold-700" : "text-navy-500 dark:text-white"
                                 }`}
                               >
                                 {event.isVisit ? (
@@ -477,7 +477,7 @@ function CalendarView() {
                                 ) : null}
                               </p>
                               {!event.allDay ? (
-                                <p className="mt-0.5 text-xs text-stone-500">
+                                <p className="mt-0.5 text-xs text-stone-500 dark:text-white/50">
                                   {timeFmt.format(event.start)} –{" "}
                                   {timeFmt.format(event.end)}
                                   {event.location ? (
@@ -494,9 +494,9 @@ function CalendarView() {
                       })}
                   </ul>
 
-                  <div className="flex items-center justify-between gap-4 border-t border-navy-500/10 px-6 py-4">
+                  <div className="flex items-center justify-between gap-4 border-t border-navy-500/10 dark:border-white/10 px-6 py-4">
                     {events.some((e) => e.isVisit) ? (
-                      <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-500">
+                      <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-500 dark:text-white/50">
                         <span className="flex items-center gap-1.5">
                           <span className="h-2.5 w-1 rounded-full bg-navy-500" />
                           Your meetings
@@ -515,7 +515,7 @@ function CalendarView() {
                         setDayModalOpen(false);
                         setAddOpen(true);
                       }}
-                      className="min-h-9 shrink-0 cursor-pointer rounded-lg border border-navy-500/20 px-3 text-xs font-medium text-navy-500 transition-colors hover:bg-navy-500/8"
+                      className="min-h-9 shrink-0 cursor-pointer rounded-lg border border-navy-500/20 dark:border-white/15 px-3 text-xs font-medium text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
                     >
                       + Add event
                     </button>
@@ -550,12 +550,12 @@ function CalendarView() {
               role="dialog"
               aria-modal="true"
               aria-label="Add an event"
-              className="relative z-10 w-full max-w-md rounded-4xl bg-white p-6 shadow-2xl"
+              className="relative z-10 w-full max-w-md rounded-4xl bg-white dark:bg-surface-dark-card p-6 shadow-2xl"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-navy-500">Add event</h2>
-                  <p className="mt-1 text-sm text-stone-500">
+                  <h2 className="text-xl font-bold text-navy-500 dark:text-white">Add event</h2>
+                  <p className="mt-1 text-sm text-stone-500 dark:text-white/50">
                     Added to your calendar on {dayFmt.format(day)}.
                   </p>
                 </div>
@@ -563,7 +563,7 @@ function CalendarView() {
                   type="button"
                   onClick={() => setAddOpen(false)}
                   aria-label="Close"
-                  className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-navy-500/15 text-navy-500 transition-colors hover:bg-navy-500/10"
+                  className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-navy-500/15 dark:border-white/10 text-navy-500 dark:text-white transition-colors hover:bg-navy-500/10 dark:bg-white/10"
                 >
                   <IconX className="size-5" />
                 </button>
@@ -573,7 +573,7 @@ function CalendarView() {
                 <div>
                   <label
                     htmlFor="eventTitle"
-                    className="mb-2 block text-sm font-medium text-navy-500"
+                    className="mb-2 block text-sm font-medium text-navy-500 dark:text-white"
                   >
                     Title *
                   </label>
@@ -585,7 +585,7 @@ function CalendarView() {
                       setForm((prev) => ({ ...prev, title: e.target.value }))
                     }
                     placeholder="e.g. Client call — Kotak"
-                    className="min-h-12 w-full rounded-xl border border-navy-500/20 px-4 text-navy-500 outline-none focus:border-navy-500"
+                    className="min-h-12 w-full rounded-xl border border-navy-500/20 dark:border-white/15 px-4 text-navy-500 dark:text-white outline-none focus:border-navy-500"
                   />
                 </div>
 
@@ -593,7 +593,7 @@ function CalendarView() {
                   <div>
                     <label
                       htmlFor="eventStart"
-                      className="mb-2 block text-sm font-medium text-navy-500"
+                      className="mb-2 block text-sm font-medium text-navy-500 dark:text-white"
                     >
                       From
                     </label>
@@ -604,13 +604,13 @@ function CalendarView() {
                       onChange={(e) =>
                         setForm((prev) => ({ ...prev, start: e.target.value }))
                       }
-                      className="min-h-12 w-full rounded-xl border border-navy-500/20 px-4 text-navy-500 outline-none focus:border-navy-500"
+                      className="min-h-12 w-full rounded-xl border border-navy-500/20 dark:border-white/15 px-4 text-navy-500 dark:text-white outline-none focus:border-navy-500"
                     />
                   </div>
                   <div>
                     <label
                       htmlFor="eventEnd"
-                      className="mb-2 block text-sm font-medium text-navy-500"
+                      className="mb-2 block text-sm font-medium text-navy-500 dark:text-white"
                     >
                       Until
                     </label>
@@ -621,13 +621,13 @@ function CalendarView() {
                       onChange={(e) =>
                         setForm((prev) => ({ ...prev, end: e.target.value }))
                       }
-                      className="min-h-12 w-full rounded-xl border border-navy-500/20 px-4 text-navy-500 outline-none focus:border-navy-500"
+                      className="min-h-12 w-full rounded-xl border border-navy-500/20 dark:border-white/15 px-4 text-navy-500 dark:text-white outline-none focus:border-navy-500"
                     />
                   </div>
                 </div>
 
                 {addError ? (
-                  <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+                  <p role="alert" className="rounded-xl bg-red-50 dark:bg-red-400/15 px-4 py-3 text-sm text-red-600 dark:text-red-300">
                     {addError}
                   </p>
                 ) : null}
@@ -658,7 +658,7 @@ export default function CalendarPage() {
       backLabel="Go to the directory"
     >
       {/* useSearchParams needs a Suspense boundary so the route stays prerenderable. */}
-      <Suspense fallback={<div className="min-h-[60vh] bg-stone-50" />}>
+      <Suspense fallback={<div className="min-h-[60vh] bg-stone-50 dark:bg-surface-dark" />}>
         <CalendarView />
       </Suspense>
     </RoleGate>

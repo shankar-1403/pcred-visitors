@@ -33,7 +33,7 @@ export default function RoleGate({
         <span
           role="status"
           aria-label="Loading"
-          className="size-8 animate-spin rounded-full border-2 border-navy-500/20 border-t-navy-500"
+          className="size-8 animate-spin rounded-full border-2 border-navy-500/20 border-t-navy-500 dark:border-white/15 dark:border-t-white"
         />
       </div>
     );
@@ -42,8 +42,8 @@ export default function RoleGate({
   if (role !== allow) {
     return (
       <div className="mx-auto max-w-lg px-4 py-24 text-center">
-        <h1 className="font-serif text-2xl text-navy-500">{title}</h1>
-        <p className="mt-3 text-sm leading-relaxed text-stone-500">{body}</p>
+        <h1 className="font-serif text-2xl text-navy-500 dark:text-white">{title}</h1>
+        <p className="mt-3 text-sm leading-relaxed text-stone-500 dark:text-white/60">{body}</p>
         <Link
           href={backHref}
           className="mt-8 inline-flex min-h-11 items-center rounded-xl bg-navy-500 px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90"

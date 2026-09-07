@@ -24,10 +24,10 @@ import TablePagination from "@/components/TablePagination";
 type Decision = "approved" | "declined" | "postponed";
 
 const STATUS_STYLES: Record<VisitorStatus, string> = {
-  pending: "bg-amber-50 text-amber-700",
-  approved: "bg-green-50 text-green-700",
-  declined: "bg-red-50 text-red-600",
-  postponed: "bg-navy-500/10 text-navy-500",
+  pending: "bg-amber-50 dark:bg-amber-400/15 text-amber-700 dark:text-amber-300",
+  approved: "bg-green-50 dark:bg-green-400/15 text-green-700 dark:text-green-300",
+  declined: "bg-red-50 dark:bg-red-400/15 text-red-600 dark:text-red-300",
+  postponed: "bg-navy-500/10 dark:bg-white/10 text-navy-500 dark:text-white",
 };
 
 const STATUS_LABELS: Record<VisitorStatus, string> = {
@@ -185,10 +185,10 @@ export default function VisitorsInbox() {
     <div className="max-w-7xl mx-auto px-4 pt-20 pb-16 space-y-8">
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-navy-500">
+          <h1 className="text-2xl font-semibold text-navy-500 dark:text-white">
             Visitors at the door
           </h1>
-          <p className="mt-1 text-sm text-stone-500">
+          <p className="mt-1 text-sm text-stone-500 dark:text-white/50">
             Visitors here to see you. Your answer appears on their screen
             immediately.
           </p>
@@ -203,17 +203,17 @@ export default function VisitorsInbox() {
             {[0, 1].map((key) => (
               <div
                 key={key}
-                className="h-52 animate-pulse rounded-3xl border border-navy-500/10 bg-navy-500/[0.04]"
+                className="h-52 animate-pulse rounded-3xl border border-navy-500/10 dark:border-white/10 bg-navy-500/[0.04]"
               />
             ))}
           </div>
         ) : pendingCards.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-navy-500/20 bg-white px-6 py-12 text-center">
-            <IconCheck className="mx-auto size-8 text-navy-500/30" />
-            <p className="mt-3 text-sm font-medium text-navy-500">
+          <div className="rounded-3xl border border-dashed border-navy-500/20 dark:border-white/15 bg-white dark:bg-surface-dark-card px-6 py-12 text-center">
+            <IconCheck className="mx-auto size-8 text-navy-500 dark:text-white/30" />
+            <p className="mt-3 text-sm font-medium text-navy-500 dark:text-white">
               Nobody is waiting right now.
             </p>
-            <p className="mt-1 text-sm text-stone-500">
+            <p className="mt-1 text-sm text-stone-500 dark:text-white/50">
               New check-ins appear here the moment they&rsquo;re submitted.
             </p>
           </div>
@@ -256,14 +256,14 @@ export default function VisitorsInbox() {
               role="dialog"
               aria-modal="true"
               aria-label="Respond to visitor"
-              className="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-4xl bg-white p-6 shadow-2xl"
+              className="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-4xl bg-white dark:bg-surface-dark-card p-6 shadow-2xl"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-navy-500">
+                  <h2 className="text-xl font-bold text-navy-500 dark:text-white">
                     {respondingTo.visitorName}
                   </h2>
-                  <p className="mt-1 text-sm text-stone-500">
+                  <p className="mt-1 text-sm text-stone-500 dark:text-white/50">
                     {respondingTo.purpose}
                     {respondingTo.company ? ` · ${respondingTo.company}` : ""}
                   </p>
@@ -272,7 +272,7 @@ export default function VisitorsInbox() {
                   type="button"
                   onClick={() => setRespondingTo(null)}
                   aria-label="Close"
-                  className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-navy-500/15 text-navy-500 transition-colors hover:bg-navy-500/10"
+                  className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-navy-500/15 dark:border-white/10 text-navy-500 dark:text-white transition-colors hover:bg-navy-500/10 dark:bg-white/10"
                 >
                   <IconX className="size-5" />
                 </button>
@@ -301,7 +301,7 @@ export default function VisitorsInbox() {
                           : value === "declined"
                             ? "border-maroon-500 bg-maroon-500 text-white"
                             : "border-navy-500 bg-navy-500 text-white"
-                        : "border-navy-500/20 bg-white text-navy-500 hover:bg-navy-500/6"
+                        : "border-navy-500/20 dark:border-white/15 bg-white dark:bg-surface-dark-card text-navy-500 dark:text-white hover:bg-navy-500/6 dark:hover:bg-white/6"
                     }`}
                   >
                     {label}
@@ -311,7 +311,7 @@ export default function VisitorsInbox() {
 
               {decision === "postponed" ? (
                 <fieldset className="mt-5">
-                  <legend className="mb-2 block text-sm font-medium text-navy-500">
+                  <legend className="mb-2 block text-sm font-medium text-navy-500 dark:text-white">
                     Ask them to come back
                   </legend>
                   <div className="flex flex-wrap gap-2">
@@ -328,7 +328,7 @@ export default function VisitorsInbox() {
                         className={`min-h-11 cursor-pointer rounded-xl border px-4 text-sm font-medium transition-colors duration-200 ${
                           !postponeCustom && postponeMinutes === minutes
                             ? "border-navy-500 bg-navy-500 text-white"
-                            : "border-navy-500/20 text-navy-500 hover:bg-navy-500/6"
+                            : "border-navy-500/20 dark:border-white/15 text-navy-500 dark:text-white hover:bg-navy-500/6 dark:hover:bg-white/6"
                         }`}
                       >
                         {minutes < 60 ? `${minutes} min` : `${minutes / 60} hr`}
@@ -339,7 +339,7 @@ export default function VisitorsInbox() {
                   <div className="mt-3">
                     <label
                       htmlFor="postponeCustom"
-                      className="mb-1.5 block text-xs font-medium text-stone-600"
+                      className="mb-1.5 block text-xs font-medium text-stone-600 dark:text-white/60"
                     >
                       Or pick an exact date and time
                     </label>
@@ -365,16 +365,16 @@ export default function VisitorsInbox() {
                             : "Please pick a time in the future."
                         );
                       }}
-                      className="min-h-11 w-full max-w-xs rounded-xl border border-navy-500/20 px-3 text-sm text-navy-500 outline-none focus:border-navy-500 sm:w-auto"
+                      className="min-h-11 w-full max-w-xs rounded-xl border border-navy-500/20 dark:border-white/15 px-3 text-sm text-navy-500 dark:text-white outline-none focus:border-navy-500 sm:w-auto"
                     />
                   </div>
 
                   {postponeCustomError ? (
-                    <p role="alert" className="mt-2 text-sm text-red-600">
+                    <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-300">
                       {postponeCustomError}
                     </p>
                   ) : (
-                    <p className="mt-2 text-xs text-stone-500">
+                    <p className="mt-2 text-xs text-stone-500 dark:text-white/50">
                       The tablet will show{" "}
                       {postponeCustom
                         ? formatDateTime(new Date(postponeCustom).getTime())
@@ -388,7 +388,7 @@ export default function VisitorsInbox() {
               <div className="mt-5">
                 <label
                   htmlFor="responseNote"
-                  className="mb-2 block text-sm font-medium text-navy-500"
+                  className="mb-2 block text-sm font-medium text-navy-500 dark:text-white"
                 >
                   {decision === "declined"
                     ? "Reason (shown to the visitor) *"
@@ -407,12 +407,12 @@ export default function VisitorsInbox() {
                         ? "e.g. Finishing a call, sorry for the wait"
                         : "e.g. In meetings all day — please email me instead"
                   }
-                  className="w-full resize-none rounded-2xl border border-navy-500/20 px-4 py-3 text-sm text-navy-500 outline-none transition-colors focus:border-navy-500"
+                  className="w-full resize-none rounded-2xl border border-navy-500/20 dark:border-white/15 px-4 py-3 text-sm text-navy-500 dark:text-white outline-none transition-colors focus:border-navy-500"
                 />
               </div>
 
               {error ? (
-                <p role="alert" className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+                <p role="alert" className="mt-3 rounded-xl bg-red-50 dark:bg-red-400/15 px-4 py-3 text-sm text-red-600 dark:text-red-300">
                   {error}
                 </p>
               ) : null}
@@ -433,7 +433,7 @@ export default function VisitorsInbox() {
       {/* ----------------------------------------------------- visit log */}
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-navy-500">Visit log</h2>
+          <h2 className="text-lg font-semibold text-navy-500 dark:text-white">Visit log</h2>
 
           <div className="flex flex-wrap gap-2">
             {(["all", "pending", "approved", "postponed", "declined"] as const).map(
@@ -446,7 +446,7 @@ export default function VisitorsInbox() {
                   className={`min-h-11 cursor-pointer rounded-full border px-4 text-xs font-semibold capitalize transition-colors duration-200 ${
                     statusFilter === value
                       ? "border-navy-500 bg-navy-500 text-white"
-                      : "border-navy-500/20 text-navy-500 hover:bg-navy-500/6"
+                      : "border-navy-500/20 dark:border-white/15 text-navy-500 dark:text-white hover:bg-navy-500/6 dark:hover:bg-white/6"
                   }`}
                 >
                   {value === "all" ? "All" : STATUS_LABELS[value]}
@@ -456,15 +456,15 @@ export default function VisitorsInbox() {
           </div>
         </div>
 
-        <div className="max-w-full overflow-hidden rounded-xl border border-navy-500/15 bg-white">
+        <div className="max-w-full overflow-hidden rounded-xl border border-navy-500/15 dark:border-white/10 bg-white dark:bg-surface-dark-card">
           {/* Cards on phones — a seven-column log is unreadable at 375px. */}
-          <ul className="divide-y divide-navy-500/10 sm:hidden">
+          <ul className="divide-y divide-navy-500 dark:divide-white/10/10 dark:divide-white/10 sm:hidden">
             {loading ? (
-              <li className="px-4 py-6 text-center text-sm text-stone-500">
+              <li className="px-4 py-6 text-center text-sm text-stone-500 dark:text-white/50">
                 Loading visits…
               </li>
             ) : history.length === 0 ? (
-              <li className="px-4 py-6 text-center text-sm text-stone-500">
+              <li className="px-4 py-6 text-center text-sm text-stone-500 dark:text-white/50">
                 No visits to show.
               </li>
             ) : (
@@ -475,10 +475,10 @@ export default function VisitorsInbox() {
                   <li key={request.id} className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-semibold text-navy-500">
+                        <p className="truncate font-semibold text-navy-500 dark:text-white">
                           {request.visitorName}
                         </p>
-                        <p className="mt-0.5 truncate text-sm text-stone-500">
+                        <p className="mt-0.5 truncate text-sm text-stone-500 dark:text-white/50">
                           {request.purpose}
                           {request.company ? ` · ${request.company}` : ""}
                         </p>
@@ -490,7 +490,7 @@ export default function VisitorsInbox() {
                       </span>
                     </div>
 
-                    <p className="mt-2 text-xs text-stone-500">
+                    <p className="mt-2 text-xs text-stone-500 dark:text-white/50">
                       {formatDateTime(request.createdAt)}
                       {request.requestedFor
                         ? ` · asked for ${formatTime(request.requestedFor)}`
@@ -504,7 +504,7 @@ export default function VisitorsInbox() {
 
           <div className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-190 table-auto text-left text-sm">
-              <thead className="border-b border-slate-800 bg-navy-500 text-sm uppercase text-white">
+              <thead className="border-b border-slate-800 dark:border-white/10 bg-navy-500 text-sm uppercase text-white">
                 <tr>
                   <th className="px-4 py-2 font-medium whitespace-nowrap">Visitor</th>
                   <th className="px-4 py-2 font-medium whitespace-nowrap">To meet</th>
@@ -515,16 +515,16 @@ export default function VisitorsInbox() {
                   <th className="px-4 py-2 font-medium whitespace-nowrap">Answered by</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-navy-500">
+              <tbody className="divide-y divide-navy-500 dark:divide-white/10">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-stone-500">
+                    <td colSpan={7} className="px-4 py-6 text-center text-stone-500 dark:text-white/50">
                       Loading visits…
                     </td>
                   </tr>
                 ) : history.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-stone-500">
+                    <td colSpan={7} className="px-4 py-6 text-center text-stone-500 dark:text-white/50">
                       No visits to show.
                     </td>
                   </tr>
@@ -533,26 +533,26 @@ export default function VisitorsInbox() {
                     const status = (request.status ?? "pending") as VisitorStatus;
 
                     return (
-                      <tr key={request.id} className="text-sm text-navy-500">
+                      <tr key={request.id} className="text-sm text-navy-500 dark:text-white">
                         <td className="px-4 py-2">
                           <span className="block max-w-50 truncate font-medium">
                             {request.visitorName}
                           </span>
-                          <span className="block text-xs text-stone-500">
+                          <span className="block text-xs text-stone-500 dark:text-white/50">
                             {request.visitorPhone}
                             {request.company ? ` · ${request.company}` : ""}
                           </span>
                         </td>
-                        <td className="px-4 py-2 text-stone-500">
+                        <td className="px-4 py-2 text-stone-500 dark:text-white/50">
                           {request.staffName || "—"}
                         </td>
-                        <td className="px-4 py-2 text-stone-500">
+                        <td className="px-4 py-2 text-stone-500 dark:text-white/50">
                           {request.purpose || "—"}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-stone-500">
+                        <td className="px-4 py-2 whitespace-nowrap text-stone-500 dark:text-white/50">
                           {formatDateTime(request.createdAt)}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-stone-500">
+                        <td className="px-4 py-2 whitespace-nowrap text-stone-500 dark:text-white/50">
                           {request.requestedFor
                             ? formatTime(request.requestedFor)
                             : "Now"}
@@ -564,12 +564,12 @@ export default function VisitorsInbox() {
                             {STATUS_LABELS[status]}
                           </span>
                           {status === "postponed" && request.postponedTo ? (
-                            <span className="ml-2 text-xs text-stone-500">
+                            <span className="ml-2 text-xs text-stone-500 dark:text-white/50">
                               {formatTime(request.postponedTo)}
                             </span>
                           ) : null}
                         </td>
-                        <td className="px-4 py-2 text-stone-500">
+                        <td className="px-4 py-2 text-stone-500 dark:text-white/50">
                           {request.respondedByName || "—"}
                         </td>
                       </tr>
@@ -614,69 +614,69 @@ function PendingCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ duration: 0.25 }}
-      className="rounded-3xl border border-amber-300/60 bg-white p-6 shadow-lg shadow-navy-500/5"
+      className="rounded-3xl border border-amber-300/60 bg-white dark:bg-surface-dark-card p-6 shadow-lg shadow-navy-500/5"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h3 className="truncate text-lg font-semibold text-navy-500">
+          <h3 className="truncate text-lg font-semibold text-navy-500 dark:text-white">
             {request.visitorName}
           </h3>
-          <p className="mt-1 text-sm text-stone-500">
+          <p className="mt-1 text-sm text-stone-500 dark:text-white/50">
             here to meet{" "}
-            <span className="font-medium text-navy-500">
+            <span className="font-medium text-navy-500 dark:text-white">
               {request.staffName}
             </span>
           </p>
         </div>
 
-        <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold tabular-nums text-amber-700">
+        <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 dark:bg-amber-400/15 px-3 py-1 text-xs font-semibold tabular-nums text-amber-700 dark:text-amber-300">
           <IconClock className="size-3.5" />
           {waiting}
         </span>
       </div>
 
       {request.requestedFor ? (
-        <p className="mt-3 inline-flex items-center gap-2 rounded-xl bg-navy-500/10 px-3 py-1.5 text-sm font-semibold text-navy-500">
+        <p className="mt-3 inline-flex items-center gap-2 rounded-xl bg-navy-500/10 dark:bg-white/10 px-3 py-1.5 text-sm font-semibold text-navy-500 dark:text-white">
           <IconCalendarTime className="size-4" />
           Asking for {formatTime(request.requestedFor)}
         </p>
       ) : (
-        <p className="mt-3 text-sm font-medium text-amber-700">
+        <p className="mt-3 text-sm font-medium text-amber-700 dark:text-amber-300">
           Waiting at the door now
         </p>
       )}
 
-      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-700">
+      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-700 dark:text-white/70">
         <span className="flex items-center gap-1.5">
-          <IconCalendarTime className="size-4 text-stone-500" />
+          <IconCalendarTime className="size-4 text-stone-500 dark:text-white/50" />
           {request.purpose}
         </span>
         <span className="flex items-center gap-1.5">
-          <IconPhone className="size-4 text-stone-500" />
+          <IconPhone className="size-4 text-stone-500 dark:text-white/50" />
           {request.visitorPhone}
         </span>
         {request.company ? (
           <span className="flex items-center gap-1.5">
-            <IconBuilding className="size-4 text-stone-500" />
+            <IconBuilding className="size-4 text-stone-500 dark:text-white/50" />
             {request.company}
           </span>
         ) : null}
         {(request.partySize ?? 1) > 1 ? (
           <span className="flex items-center gap-1.5">
-            <IconUsers className="size-4 text-stone-500" />
+            <IconUsers className="size-4 text-stone-500 dark:text-white/50" />
             {request.partySize} people
           </span>
         ) : null}
       </div>
 
       {request.purposeNote ? (
-        <p className="mt-4 rounded-2xl bg-navy-500/[0.05] px-4 py-3 text-sm leading-relaxed text-navy-500">
+        <p className="mt-4 rounded-2xl bg-navy-500/[0.05] px-4 py-3 text-sm leading-relaxed text-navy-500 dark:text-white">
           &ldquo;{request.purposeNote}&rdquo;
         </p>
       ) : null}
 
       {unassigned ? (
-        <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+        <p className="mt-4 rounded-xl bg-amber-50 dark:bg-amber-400/15 px-3 py-2 text-xs font-medium text-amber-700 dark:text-amber-300">
           {request.staffName} has no login — respond on their behalf.
         </p>
       ) : null}
@@ -692,7 +692,7 @@ function PendingCard({
         <button
           type="button"
           onClick={() => onRespond(request, "postponed")}
-          className="min-h-12 cursor-pointer rounded-xl border border-navy-500/25 text-sm font-semibold text-navy-500 transition-colors hover:bg-navy-500/8"
+          className="min-h-12 cursor-pointer rounded-xl border border-navy-500/25 dark:border-white/15 text-sm font-semibold text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
         >
           Postpone
         </button>

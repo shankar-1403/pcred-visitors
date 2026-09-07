@@ -23,11 +23,11 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-stone-50">
+      <div className="flex min-h-screen items-center justify-center">
         <span
           aria-label="Loading"
           role="status"
-          className="size-8 animate-spin rounded-full border-2 border-navy-500/20 border-t-navy-500"
+          className="size-8 animate-spin rounded-full border-2 border-navy-500/20 border-t-navy-500 dark:border-white/15 dark:border-t-white"
         />
       </div>
     );

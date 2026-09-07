@@ -20,7 +20,7 @@ export default function StaffPage() {
         <span
           role="status"
           aria-label="Loading"
-          className="size-8 animate-spin rounded-full border-2 border-navy-500/20 border-t-navy-500"
+          className="size-8 animate-spin rounded-full border-2 border-navy-500/20 border-t-navy-500 dark:border-white/15 dark:border-t-white"
         />
       </div>
     );

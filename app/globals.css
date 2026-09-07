@@ -1,6 +1,15 @@
 @import "tailwindcss";
 
 /*
+ * Dark mode is class-driven (`.dark` somewhere up the tree) rather than
+ * following the OS by default, and deliberately scoped: AppShell is the only
+ * place that ever adds the class, so it only ever reaches the admin/staff
+ * screens it wraps. The kiosk and the login screen keep their fixed brand
+ * look regardless of this toggle — neither uses a `dark:` utility.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
  * PCRED brand system, matched to the main site.
  * Canonical dark blue #045178, gold accent #B8892E / #D9B872, maroon #8A191F.
  */
@@ -29,6 +38,13 @@
   --color-stone-500: #8d8c8f;
   --color-stone-700: #545355;
   --color-stone-900: #1c1b1d;
+
+  /* Dark-mode surfaces for the admin/staff screens only — the kiosk stays on
+     its own fixed brand-deep gradient regardless of this toggle. Three steps
+     of elevation: page background, card, and a lighter hover/input surface. */
+  --color-surface-dark: #01131d;
+  --color-surface-dark-card: #0a3550;
+  --color-surface-dark-raised: #0f4363;
 
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
