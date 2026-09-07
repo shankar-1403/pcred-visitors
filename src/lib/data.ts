@@ -320,13 +320,15 @@ export interface NewStaffAccount {
   email: string;
   password: string;
   displayName: string;
-  role: Role;
+  /** Omit when resetting an existing login without touching its access level. */
+  role?: Role;
 }
 
 /** Creates a login. Admin-only, and re-checked server-side. */
+/** Creates a login for that email, or resets the password if it already exists. */
 export async function createStaffAccount(
   account: NewStaffAccount
-): Promise<void> {
+): Promise<{ created: boolean }> {
   const response = await fetch("/api/staff-accounts", {
     method: "POST",
     headers: {
@@ -336,11 +338,13 @@ export async function createStaffAccount(
     body: JSON.stringify(account),
   });
 
-  const data = (await response.json()) as { error?: string };
+  const data = (await response.json()) as { error?: string; created?: boolean };
 
   if (!response.ok) {
-    throw new Error(data.error ?? "Could not create that login.");
+    throw new Error(data.error ?? "Could not save that login.");
   }
+
+  return { created: data.created ?? true };
 }
 
 export async function respondToRequest(

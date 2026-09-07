@@ -17,6 +17,9 @@ const initialFormData = {
   phone: "",
   password: "",
   accessRole: "staff" as "admin" | "staff",
+  // Only meaningful while editing: unchecked, resetting a password never
+  // touches whatever access level that account already has.
+  changeAccess: false,
   active: true,
 };
 
@@ -90,7 +93,11 @@ export default function StaffDirectory() {
       email: member.email ?? "",
       phone: member.phone ?? "",
       password: "",
+      // Inert until "Also change their access level" is ticked — see
+      // changeAccess above for why this can't just reflect their real role
+      // (the directory doesn't know it; roles are keyed by uid, staff by id).
       accessRole: "staff",
+      changeAccess: false,
       active: member.active ?? true,
     });
     setError("");
@@ -147,15 +154,22 @@ export default function StaffDirectory() {
       const now = Date.now();
       const isEditing = editingStaffId !== null;
 
-      // The login comes first: if the address is already taken there is no
-      // point writing a directory record that points at somebody else's
-      // account. On an edit we never touch the login.
-      if (!isEditing && formData.password.trim()) {
-        await createStaffAccount({
+      // The login comes first, whether adding someone new or fixing up an
+      // existing record whose account never got created. If the address
+      // already has a login, this resets its password instead of failing.
+      let loginResult: { created: boolean } | null = null;
+
+      if (formData.password.trim()) {
+        loginResult = await createStaffAccount({
           email: formData.email.trim().toLowerCase(),
           password: formData.password,
           displayName: formData.name.trim(),
-          role: formData.accessRole,
+          // A brand-new login always gets an explicit level. Resetting an
+          // existing one only changes it if the admin ticked the box —
+          // otherwise whatever access that account already has is left alone.
+          ...(!isEditing || formData.changeAccess
+            ? { role: formData.accessRole }
+            : {}),
         });
       }
 
@@ -178,11 +192,13 @@ export default function StaffDirectory() {
       });
 
       setSuccess(
-        isEditing
-          ? "Staff member updated."
-          : formData.password.trim()
-            ? `${formData.name.trim()} added, and their login is ready — send them the password.`
-            : `${formData.name.trim()} added. They have no login, so an admin answers their visitors.`
+        loginResult?.created
+          ? `${formData.name.trim()}'s login is ready — send them the password.`
+          : loginResult
+            ? `Password reset for ${formData.name.trim()} — send them the new one.`
+            : isEditing
+              ? "Staff member updated."
+              : `${formData.name.trim()} added. They have no login, so an admin answers their visitors.`
       );
       setModalOpen(false);
       resetForm();
@@ -362,69 +378,89 @@ export default function StaffDirectory() {
                     </div>
                   </div>
 
-                  {editingStaffId === null ? (
-                    <fieldset className="rounded-2xl border border-navy-500/15 p-4">
-                      <legend className="px-2 text-sm font-medium text-navy-500">
-                        Their login
-                      </legend>
-                      <p className="text-xs leading-relaxed text-stone-500">
-                        Set a password here and their login is created the
-                        moment you add them — they can sign in straight away
-                        with the email above. Leave it blank for someone who
-                        doesn&rsquo;t need an account (e.g. a driver or office
-                        assistant); their visitors still appear under
-                        &ldquo;All requests&rdquo; for reception to answer.
-                      </p>
-
-                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                        <div>
-                          <label htmlFor="password" className={labelClass}>
-                            Starting password
-                          </label>
-                          <input
-                            id="password"
-                            name="password"
-                            type="text"
-                            autoComplete="off"
-                            value={formData.password}
-                            onChange={handleChange}
-                            placeholder="At least 8 characters"
-                            className={inputClass}
-                          />
-                          <p className="mt-2 text-xs text-stone-500">
-                            Shown in plain text on purpose — you have to read
-                            it out to them. Ask them to change it once they
-                            sign in.
-                          </p>
-                        </div>
-                        <div>
-                          <label htmlFor="accessRole" className={labelClass}>
-                            Access
-                          </label>
-                          <select
-                            id="accessRole"
-                            name="accessRole"
-                            value={formData.accessRole}
-                            onChange={handleChange}
-                            className={`${inputClass} cursor-pointer`}
-                          >
-                            <option value="staff">
-                              Staff — sees only their own visitors
-                            </option>
-                            <option value="admin">
-                              Admin — manages the directory and logins
-                            </option>
-                          </select>
-                        </div>
-                      </div>
-                    </fieldset>
-                  ) : (
-                    <p className="rounded-2xl bg-navy-500/[0.05] px-4 py-3 text-xs leading-relaxed text-stone-700">
-                      Their login isn&rsquo;t changed from here. To reset a
-                      password or change access level, do that in the
-                      Firebase console under Authentication.
+                  <fieldset className="rounded-2xl border border-navy-500/15 p-4">
+                    <legend className="px-2 text-sm font-medium text-navy-500">
+                      Their login
+                    </legend>
+                    <p className="text-xs leading-relaxed text-stone-500">
+                      {editingStaffId === null ? (
+                        <>
+                          Set a password here and their login is created the
+                          moment you add them — they can sign in straight away
+                          with the email above. Leave it blank for someone who
+                          doesn&rsquo;t need an account (e.g. a driver or
+                          office assistant); their visitors still appear under
+                          &ldquo;All requests&rdquo; for reception to answer.
+                        </>
+                      ) : (
+                        <>
+                          Leave the password blank to leave their login
+                          exactly as it is. Type one to set their password —
+                          this also works if their login was never actually
+                          created (they&rsquo;ll simply get one now), so it
+                          doubles as the fix if someone can&rsquo;t sign in.
+                        </>
+                      )}
                     </p>
-                  )}
+
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor="password" className={labelClass}>
+                          {editingStaffId === null
+                            ? "Starting password"
+                            : "New password"}
+                        </label>
+                        <input
+                          id="password"
+                          name="password"
+                          type="text"
+                          autoComplete="off"
+                          value={formData.password}
+                          onChange={handleChange}
+                          placeholder="At least 8 characters"
+                          className={inputClass}
+                        />
+                        <p className="mt-2 text-xs text-stone-500">
+                          Shown in plain text on purpose — you have to read it
+                          out to them. Ask them to change it once they sign in.
+                        </p>
+                      </div>
+                      <div>
+                        <label htmlFor="accessRole" className={labelClass}>
+                          Access
+                        </label>
+                        <select
+                          id="accessRole"
+                          name="accessRole"
+                          value={formData.accessRole}
+                          onChange={handleChange}
+                          disabled={editingStaffId !== null && !formData.changeAccess}
+                          className={`${inputClass} cursor-pointer disabled:cursor-not-allowed disabled:opacity-50`}
+                        >
+                          <option value="staff">
+                            Staff — sees only their own visitors
+                          </option>
+                          <option value="admin">
+                            Admin — manages the directory and logins
+                          </option>
+                        </select>
+
+                        {editingStaffId !== null ? (
+                          <label className="mt-2 flex items-center gap-2 text-xs text-stone-600">
+                            <input
+                              type="checkbox"
+                              name="changeAccess"
+                              checked={formData.changeAccess}
+                              onChange={handleChange}
+                              className="size-3.5 accent-navy-500"
+                            />
+                            Also change their access level (only applied if
+                            you set a password above)
+                          </label>
+                        ) : null}
+                      </div>
+                    </div>
+                  </fieldset>
 
                   <div className="flex items-center gap-3">
                     <input
