@@ -362,17 +362,69 @@ export default function StaffDirectory() {
                     </div>
                   </div>
 
-                  <p className="rounded-2xl bg-navy-500/[0.05] px-4 py-3 text-xs leading-relaxed text-stone-700">
-                    <span className="font-semibold text-navy-500">
-                      About the login email:
-                    </span>{" "}
-                    if this address matches the one they sign in with, their
-                    visitors land in their own &ldquo;For me&rdquo; inbox and
-                    alert them directly. Create that login in the Firebase
-                    console under Authentication. Leave it blank for staff
-                    without a login — their visitors still appear under
-                    &ldquo;All requests&rdquo; for reception to answer.
-                  </p>
+                  {editingStaffId === null ? (
+                    <fieldset className="rounded-2xl border border-navy-500/15 p-4">
+                      <legend className="px-2 text-sm font-medium text-navy-500">
+                        Their login
+                      </legend>
+                      <p className="text-xs leading-relaxed text-stone-500">
+                        Set a password here and their login is created the
+                        moment you add them — they can sign in straight away
+                        with the email above. Leave it blank for someone who
+                        doesn&rsquo;t need an account (e.g. a driver or office
+                        assistant); their visitors still appear under
+                        &ldquo;All requests&rdquo; for reception to answer.
+                      </p>
+
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label htmlFor="password" className={labelClass}>
+                            Starting password
+                          </label>
+                          <input
+                            id="password"
+                            name="password"
+                            type="text"
+                            autoComplete="off"
+                            value={formData.password}
+                            onChange={handleChange}
+                            placeholder="At least 8 characters"
+                            className={inputClass}
+                          />
+                          <p className="mt-2 text-xs text-stone-500">
+                            Shown in plain text on purpose — you have to read
+                            it out to them. Ask them to change it once they
+                            sign in.
+                          </p>
+                        </div>
+                        <div>
+                          <label htmlFor="accessRole" className={labelClass}>
+                            Access
+                          </label>
+                          <select
+                            id="accessRole"
+                            name="accessRole"
+                            value={formData.accessRole}
+                            onChange={handleChange}
+                            className={`${inputClass} cursor-pointer`}
+                          >
+                            <option value="staff">
+                              Staff — sees only their own visitors
+                            </option>
+                            <option value="admin">
+                              Admin — manages the directory and logins
+                            </option>
+                          </select>
+                        </div>
+                      </div>
+                    </fieldset>
+                  ) : (
+                    <p className="rounded-2xl bg-navy-500/[0.05] px-4 py-3 text-xs leading-relaxed text-stone-700">
+                      Their login isn&rsquo;t changed from here. To reset a
+                      password or change access level, do that in the
+                      Firebase console under Authentication.
+                    </p>
+                  )}
 
                   <div className="flex items-center gap-3">
                     <input
