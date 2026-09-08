@@ -16,8 +16,14 @@ const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 // Named ADMIN_SDK_* rather than FIREBASE_ADMIN_* — Firebase App Hosting
 // reserves any env var starting with FIREBASE_ (also X_GOOGLE_, EXT_, KIT_)
 // for its own use and refuses to let a deploy config define one.
-const CLIENT_EMAIL = process.env.ADMIN_SDK_CLIENT_EMAIL;
-const PRIVATE_KEY = process.env.ADMIN_SDK_PRIVATE_KEY?.replace(/\\n/g, "\n");
+const CLIENT_EMAIL = process.env.ADMIN_SDK_CLIENT_EMAIL?.trim();
+// The key is quoted in .env.local because it spans lines. Loading a .env file
+// strips those quotes; Secret Manager hands the value back exactly as pasted,
+// so in production they survive and OpenSSL rejects the key outright with
+// ERR_OSSL_UNSUPPORTED — an Admin SDK that looks configured but fails on use.
+const PRIVATE_KEY = process.env.ADMIN_SDK_PRIVATE_KEY?.trim()
+  .replace(/^["']|["']$/g, "")
+  .replace(/\\n/g, "\n");
 const DATABASE_URL = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL;
 
 export const HAS_ADMIN_CONFIG = Boolean(
