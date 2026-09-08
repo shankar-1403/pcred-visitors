@@ -3,8 +3,8 @@
 import { useEffect } from "react";
 
 /**
- * Registers the service worker, which is what makes the app installable — and
- * what will receive push notifications once those are built.
+ * Registers the service worker, which is what makes the app installable and
+ * what receives visitor alerts while the app is closed.
  */
 export default function ServiceWorker() {
   useEffect(() => {
@@ -16,10 +16,28 @@ export default function ServiceWorker() {
 
     if (!("serviceWorker" in navigator)) return;
 
-    navigator.serviceWorker.register("/sw.js").catch((error) => {
-      // Only affects installability, so it must not take over the screen.
-      console.warn("[visitor-app] Service worker registration failed.", error);
-    });
+    // Anyone who used the app before push existed still has the old
+    // caching-only worker holding this scope. It has no push handler, so
+    // leaving it in place would keep swallowing every visitor alert.
+    const dropOldWorker = navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) =>
+        Promise.all(
+          registrations
+            .filter((registration) =>
+              (registration.active ?? registration.waiting ?? registration.installing)
+                ?.scriptURL.endsWith("/sw.js")
+            )
+            .map((registration) => registration.unregister())
+        )
+      );
+
+    void dropOldWorker
+      .then(() => navigator.serviceWorker.register("/firebase-messaging-sw.js"))
+      .catch((error) => {
+        // Only affects installability, so it must not take over the screen.
+        console.warn("[visitor-app] Service worker registration failed.", error);
+      });
   }, []);
 
   return null;

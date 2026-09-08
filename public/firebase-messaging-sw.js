@@ -1,11 +1,17 @@
 /*
- * Handles a push while no tab of this app is open. Runs entirely separately
- * from the main app bundle, so it can't read Next.js env vars — these are
- * the same NEXT_PUBLIC_FIREBASE_* values already visible in the browser,
- * just written out plainly here instead.
+ * The app's one and only service worker.
+ *
+ * It has to stay the only one registered at "/". Registering a second script
+ * at the same scope replaces this one, and a worker with no push handler
+ * accepts every background message and silently shows nothing — which is
+ * exactly what happened while a separate caching worker lived at /sw.js.
+ *
+ * Runs outside the Next.js bundle, so it cannot read env vars. These are the
+ * same NEXT_PUBLIC_FIREBASE_* values already visible in the browser, written
+ * out plainly instead.
  */
-importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/12.18.0/firebase-messaging-compat.js");
 
 firebase.initializeApp({
   apiKey: "AIzaSyBJT43YuYjpFTTYSu8HbZ7eqQp4lQxuObc",
@@ -17,35 +23,26 @@ firebase.initializeApp({
   appId: "1:623340940557:web:09d60000168fbe015cd444",
 });
 
-const messaging = firebase.messaging();
+/*
+ * Installs the SDK's own push and notificationclick handlers, and nothing
+ * else deliberately: every message this app sends carries a notification
+ * payload, which the SDK displays by itself. Calling showNotification here
+ * as well would deliver two notifications for one visitor, and iOS drops a
+ * push subscription whose worker takes a push without displaying anything.
+ * Where the tap leads is set server-side, via webpush.fcmOptions.link.
+ */
+firebase.messaging();
 
-messaging.onBackgroundMessage((payload) => {
-  const { title, body } = payload.notification || {};
-
-  self.registration.showNotification(title || "Visitor at the door", {
-    body: body || "",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
-    tag: payload.data?.requestId || "visitor-alert",
-    data: payload.data || {},
-  });
+self.addEventListener("install", () => {
+  // Take over straight away rather than waiting for every tab to close.
+  self.skipWaiting();
 });
 
-// Tapping the notification focuses an already-open tab if there is one,
-// otherwise opens a fresh one straight to the inbox.
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-
-  event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if (client.url.includes("/staff") && "focus" in client) {
-          return client.focus();
-        }
-      }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow("/staff");
-      }
-    })
-  );
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
 });
+
+// A fetch handler is required for installability. Caches nothing on purpose:
+// serving a stale shell or a stale visitor list to a realtime app is worse
+// than having no offline support at all.
+self.addEventListener("fetch", () => {});

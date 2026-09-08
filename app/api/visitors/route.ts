@@ -73,6 +73,17 @@ function seg(value: string) {
   return value.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
 }
 
+/** Where a notification's tap should land. Read off the proxy's headers
+    because App Hosting's own request URL is the internal one. */
+function siteOrigin(request: Request) {
+  const host =
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+
+  if (!host) return new URL(request.url).origin;
+
+  return `${request.headers.get("x-forwarded-proto") ?? "https"}://${host}`;
+}
+
 interface StaffRecord {
   name?: string;
   department?: string;
@@ -87,7 +98,9 @@ async function sendPushAlert(
   staffId: string,
   tokens: Record<string, boolean>,
   visitorName: string,
-  purpose: string
+  purpose: string,
+  requestId: string,
+  origin: string
 ) {
   if (!HAS_ADMIN_CONFIG) return;
 
@@ -98,11 +111,28 @@ async function sendPushAlert(
     const messaging = adminMessaging();
     const response = await messaging.sendEachForMulticast({
       tokens: tokenList,
+      // A notification payload (rather than data alone) is what makes the
+      // service worker display this by itself while the app is closed.
       notification: {
         title: `${visitorName} is at the door`,
         body: `Here to meet you · ${purpose}`,
       },
-      data: { staffId },
+      webpush: {
+        // Wakes a sleeping phone now rather than at its own convenience.
+        headers: { Urgency: "high" },
+        notification: {
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          // One notification per visitor, however many times this is sent.
+          tag: `visitor-${requestId}`,
+        },
+        // Focuses the inbox if it is already open, opens it if not. FCM
+        // rejects a link that isn't https, which local testing would be.
+        fcmOptions: origin.startsWith("https://")
+          ? { link: `${origin}/staff` }
+          : undefined,
+      },
+      data: { staffId, requestId },
     });
 
     const stale: string[] = [];
@@ -292,7 +322,14 @@ export async function POST(request: Request) {
     const id = await createRequest(data);
 
     if (staff.fcmTokens) {
-      void sendPushAlert(staffId, staff.fcmTokens, visitorName, purpose);
+      void sendPushAlert(
+        staffId,
+        staff.fcmTokens,
+        visitorName,
+        purpose,
+        id,
+        siteOrigin(request)
+      );
     }
 
     return NextResponse.json({ success: true, id });

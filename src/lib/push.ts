@@ -10,7 +10,7 @@ export const HAS_PUSH_CONFIG = Boolean(
 /**
  * Registers this device for push and saves the token against the staff
  * member's own record — a person can have several (phone, laptop, …), so
- * it's a set of tokens, not one field. Only called after Notification
+ * it's a set of tokens, not one field. Only called once Notification
  * permission is already granted; that's a separate, earlier step.
  */
 export async function registerPushToken(staffId: string): Promise<void> {
@@ -18,13 +18,20 @@ export async function registerPushToken(staffId: string): Promise<void> {
   if (!("serviceWorker" in navigator)) return;
 
   try {
-    const [{ getMessaging, getToken }, registration] = await Promise.all([
-      import("firebase/messaging"),
-      navigator.serviceWorker.register("/firebase-messaging-sw.js"),
-    ]);
+    const { getMessaging, getToken, isSupported } = await import(
+      "firebase/messaging"
+    );
 
-    const messaging = getMessaging(app!);
-    const token = await getToken(messaging, {
+    // Safari only gained web push in 16.4, and only for a home-screen app.
+    // Asking an unsupported browser for a token throws rather than returns.
+    if (!(await isSupported())) return;
+
+    // The same worker the rest of the app registers — one script at "/", or
+    // whichever registered last would replace the other and drop pushes.
+    await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    const registration = await navigator.serviceWorker.ready;
+
+    const token = await getToken(getMessaging(app!), {
       vapidKey: VAPID_KEY,
       serviceWorkerRegistration: registration,
     });

@@ -150,10 +150,15 @@ person silently receives nothing.
 `/` instead, so a visitor has no address bar to wander off with.
 
 What makes it installable: [`app/manifest.ts`](./app/manifest.ts), the icons in
-`public/`, and [`public/sw.js`](./public/sw.js). That service worker
-deliberately **caches nothing** — its job is installability, and later push.
-Caching an app whose whole point is showing who is at the door right now risks
-serving a stale visitor list, which is worse than not working offline.
+`public/`, and [`public/firebase-messaging-sw.js`](./public/firebase-messaging-sw.js).
+That service worker deliberately **caches nothing** — its job is installability
+and push. Caching an app whose whole point is showing who is at the door right
+now risks serving a stale visitor list, which is worse than not working offline.
+
+It must stay the **only** service worker registered at `/`. A second script at
+the same scope replaces it, and a worker without a push handler accepts every
+background message and shows nothing — which is what a separate `sw.js` did
+until it was merged into this one.
 
 Installability needs **HTTPS**. It will not work from `localhost` on a phone.
 
