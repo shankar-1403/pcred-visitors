@@ -12,10 +12,16 @@
     },
 
     "staff": {
-      "//": "Public read so the unauthenticated door tablet can list who is in the office. Admins only for writes. Never put anything private in this node.",
+      "//": "Public read so the unauthenticated door tablet can list who is in the office. Admins only for writes, except a staff member's own fcmTokens below — never put anything else private in this node.",
       ".read": true,
       ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
-      ".indexOn": ["active", "department", "name"]
+      ".indexOn": ["active", "department", "name"],
+      "$staffId": {
+        "fcmTokens": {
+          "//": "A staff member registers their own device for push here — matched by email, the same rule already used for their calendar.",
+          ".write": "auth != null && root.child('staff').child($staffId).child('email').val() === auth.token.email"
+        }
+      }
     },
 
     "visitor_requests": {

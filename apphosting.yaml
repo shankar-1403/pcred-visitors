@@ -50,6 +50,12 @@ env:
       - BUILD
       - RUNTIME
 
+  - variable: NEXT_PUBLIC_FIREBASE_VAPID_KEY
+    value: "BFtlEffW8HrbHHh3EKRbCLbsze1Mw4FUv5aCBHX0-dAaSPbBQ0TogXvtAXN1inxpgKGo2nrwApBGzx3RjPMdJ74"
+    availability:
+      - BUILD
+      - RUNTIME
+
   # --- Real credentials: set with `firebase apphosting:secrets:set <name>`,
   # then this file just references the secret by name, never the value.
   # Named ADMIN_SDK_* rather than FIREBASE_ADMIN_* — App Hosting reserves any

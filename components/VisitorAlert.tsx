@@ -11,6 +11,8 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { IconBell, IconBellRinging, IconX } from "@tabler/icons-react";
 import { useAuth } from "@/src/context/AuthContext";
+import { useStaff } from "@/src/hooks/useStaff";
+import { registerPushToken } from "@/src/lib/push";
 import {
   useVisitorRequests,
   type VisitorRequest,
@@ -79,6 +81,13 @@ export default function VisitorAlert() {
   const router = useRouter();
   const { user } = useAuth();
   const { requests, loading } = useVisitorRequests();
+  const { staff } = useStaff();
+
+  const myStaffRecord = staff.find(
+    (member) =>
+      (member.email ?? "").trim().toLowerCase() ===
+      (user?.email ?? "").trim().toLowerCase()
+  );
 
   const [queue, setQueue] = useState<VisitorRequest[]>([]);
 
@@ -173,10 +182,14 @@ export default function VisitorAlert() {
       // Must be called from a real click — browsers reject a bare page-load ask.
       const result = await Notification.requestPermission();
       setAnsweredPermission(result);
+
+      if (result === "granted" && myStaffRecord) {
+        void registerPushToken(myStaffRecord.id);
+      }
     } catch {
       // Denied or unsupported: the in-app alert still works on its own.
     }
-  }, []);
+  }, [myStaffRecord]);
 
   const current = queue[0];
 

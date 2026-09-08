@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { adminDb, adminMessaging, HAS_ADMIN_CONFIG } from "@/src/lib/firebase-admin";
 
 export const runtime = "nodejs";
 
@@ -77,6 +78,54 @@ interface StaffRecord {
   department?: string;
   email?: string;
   active?: boolean;
+  fcmTokens?: Record<string, boolean>;
+}
+
+/** Push is a bonus on top of the in-app/email alerts — a failure here must
+    never fail the check-in itself. */
+async function sendPushAlert(
+  staffId: string,
+  tokens: Record<string, boolean>,
+  visitorName: string,
+  purpose: string
+) {
+  if (!HAS_ADMIN_CONFIG) return;
+
+  const tokenList = Object.keys(tokens);
+  if (tokenList.length === 0) return;
+
+  try {
+    const messaging = adminMessaging();
+    const response = await messaging.sendEachForMulticast({
+      tokens: tokenList,
+      notification: {
+        title: `${visitorName} is at the door`,
+        body: `Here to meet you · ${purpose}`,
+      },
+      data: { staffId },
+    });
+
+    const stale: string[] = [];
+    response.responses.forEach((result, index) => {
+      if (
+        !result.success &&
+        result.error?.code === "messaging/registration-token-not-registered"
+      ) {
+        stale.push(tokenList[index]!);
+      }
+    });
+
+    if (stale.length > 0) {
+      const db = adminDb();
+      await Promise.all(
+        stale.map((token) =>
+          db.ref(`staff/${staffId}/fcmTokens/${token}`).remove()
+        )
+      );
+    }
+  } catch (error) {
+    console.error("[visitor-app] Push send failed:", error);
+  }
 }
 
 async function readStaff(staffId: string): Promise<StaffRecord | null> {
@@ -241,6 +290,10 @@ export async function POST(request: Request) {
     };
 
     const id = await createRequest(data);
+
+    if (staff.fcmTokens) {
+      void sendPushAlert(staffId, staff.fcmTokens, visitorName, purpose);
+    }
 
     return NextResponse.json({ success: true, id });
   } catch (error) {

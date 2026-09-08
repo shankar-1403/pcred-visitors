@@ -40,6 +40,7 @@ const app: FirebaseApp | null = HAS_FIREBASE_CONFIG
     : initializeApp(firebaseConfig)
   : null;
 
+export { app };
 export const auth = (app ? getAuth(app) : null) as Auth;
 export const db = (app ? getDatabase(app) : null) as Database;
 

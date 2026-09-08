@@ -1,6 +1,7 @@
 import { cert, getApp, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getDatabase } from "firebase-admin/database";
+import { getMessaging } from "firebase-admin/messaging";
 
 /**
  * Admin SDK, server-side only. Never import this into a client component.
@@ -50,6 +51,7 @@ function adminApp() {
 
 export const adminAuth = () => getAuth(adminApp());
 export const adminDb = () => getDatabase(adminApp());
+export const adminMessaging = () => getMessaging(adminApp());
 
 /** True when this uid is recorded as an admin. */
 export async function isAdminUid(uid: string): Promise<boolean> {
