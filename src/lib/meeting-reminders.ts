@@ -1,5 +1,6 @@
 import { adminDb, HAS_ADMIN_CONFIG } from "./firebase-admin";
-import { sendMail, HAS_SMTP_CONFIG } from "./mailer";
+import { HAS_SMTP_CONFIG } from "./mailer";
+import { sendMeetingEmail } from "./meeting-email";
 
 /**
  * Every 15-minutes-out, un-reminded meeting on a staff member's own calendar
@@ -25,14 +26,6 @@ interface CalendarEventRecord {
 interface StaffRecord {
   name?: string;
   email?: string;
-}
-
-function formatTime(ms: number) {
-  return new Date(ms).toLocaleTimeString("en-IN", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
 }
 
 export async function sendDueMeetingReminders(): Promise<void> {
@@ -69,34 +62,17 @@ export async function sendDueMeetingReminders(): Promise<void> {
         continue;
       }
 
-      const staffName = staff[staffId]?.name ?? "";
-      const title = event.title || "the meeting";
-      const time = formatTime(event.start);
-      const clientEmail = event.clientEmail?.trim();
-
-      // A client on file gets the reminder directly, with the staff member
-      // Cc'd; with no client email to send it to, it falls back to the staff
-      // member alone.
-      const to = clientEmail || email;
-      const cc = clientEmail ? `"${staffName}" <${email}>` : undefined;
-
-      const greetingName = clientEmail
-        ? event.clientName?.split(" ")[0] ?? "there"
-        : staffName.split(" ")[0] || "there";
-
-      const body = clientEmail
-        ? `This is a reminder that "${title}" with ${staffName || "PCRED"} is scheduled for ${time} today` +
-          (event.location ? ` at ${event.location}.` : ".")
-        : `This is a reminder that "${title}" is scheduled for ${time} today` +
-          (event.location ? ` at ${event.location}.` : ".") +
-          (event.clientName ? `\nWith: ${[event.clientName, event.clientCompany].filter(Boolean).join(", ")}` : "");
-
       try {
-        await sendMail({
-          to,
-          ...(cc ? { cc } : {}),
-          subject: `Reminder: ${title} at ${time}`,
-          text: [`Hi ${greetingName},`, "", body, "", "PCRED Venture Pvt. Ltd."].join("\n"),
+        await sendMeetingEmail({
+          kind: "reminder",
+          staffName: staff[staffId]?.name ?? "",
+          staffEmail: email,
+          clientName: event.clientName,
+          clientEmail: event.clientEmail,
+          clientCompany: event.clientCompany,
+          title: event.title || "the meeting",
+          start: event.start,
+          location: event.location,
         });
 
         await db.ref(`calendar_events/${staffId}/${eventId}/reminderSentAt`).set(now);

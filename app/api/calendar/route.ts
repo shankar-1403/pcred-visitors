@@ -7,6 +7,7 @@ import {
   rtdbSet,
   verifyIdToken,
 } from "@/src/lib/rtdb-server";
+import { sendMeetingEmail } from "@/src/lib/meeting-email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,7 +63,7 @@ async function callerContext(request: Request) {
     throw new Error("NOT_ON_DIRECTORY");
   }
 
-  return { idToken, staffId };
+  return { idToken, staffId, email };
 }
 
 function errorResponse(error: unknown, fallback: string) {
@@ -117,7 +118,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { idToken, staffId } = await callerContext(request);
+    const { idToken, staffId, email } = await callerContext(request);
 
     const body = (await request.json()) as {
       title?: string;
@@ -194,6 +195,26 @@ export async function POST(request: Request) {
     // The public mirror carries only the timing — never the title — so the
     // kiosk's free/busy check can never leak what the meeting is about.
     await rtdbSet(`busy_blocks/${staffId}/${id}`, { start, end }, idToken);
+
+    // Best-effort, same as the 15-minute reminder: a failed email must never
+    // undo the event that's already been saved.
+    try {
+      const staffName = await rtdbGet<string>(`staff/${staffId}/name`, idToken);
+
+      await sendMeetingEmail({
+        kind: "created",
+        staffName: staffName ?? "",
+        staffEmail: email,
+        clientName,
+        clientEmail,
+        clientCompany,
+        title,
+        start,
+        location,
+      });
+    } catch (error) {
+      console.error("[visitor-app] event saved, but could not send the email:", error);
+    }
 
     return NextResponse.json({ id });
   } catch (error) {

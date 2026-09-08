@@ -99,7 +99,9 @@ export default function CheckInFlow({
     !staffLoading &&
     (!presetStaff || presetStaff.active === false);
 
-  const [step, setStep] = useState<Step>("welcome");
+  // A staff member's own link skips the welcome screen entirely — whoever
+  // opens it already knows why they're there, so it goes straight to the form.
+  const [step, setStep] = useState<Step>(presetStaffId ? "form" : "welcome");
   const [form, setForm] = useState(initialForm);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -116,7 +118,7 @@ export default function CheckInFlow({
   const meetingStaff = presetStaffId ? presetStaff ?? null : selectedStaff;
 
   const reset = useCallback(() => {
-    setStep("welcome");
+    setStep(presetStaffId ? "form" : "welcome");
     setForm(initialForm);
     setSelectedStaff(null);
     setFieldErrors({});
@@ -124,7 +126,7 @@ export default function CheckInFlow({
     setStaffError("");
     setSubmitError("");
     setRequestId(null);
-  }, []);
+  }, [presetStaffId]);
 
   // Idle guard: any half-finished check-in is wiped so the next visitor never
   // sees (or accidentally submits under) someone else's details.
