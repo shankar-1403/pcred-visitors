@@ -389,11 +389,32 @@ export default function CheckInFlow({
 
   return (
     <div className="relative flex min-h-screen flex-col bg-brand-deep text-white">
-      {/* Ambient brand wash — static, so nothing animates behind text all day.
-          Clipping lives on this layer, not the page: overflow-hidden on the
-          root cut off anything taller than the viewport. */}
+      {/* Ambient brand wash. Clipping lives on this layer, not the page:
+          overflow-hidden on the root cut off anything taller than the viewport.
+          The brand film sits under a heavy scrim so white text keeps its
+          contrast over whatever frame happens to be showing, and the wash
+          alone stands in wherever the film can't play. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_-10%,#045178_0%,#022436_58%,#01161f_100%)]" />
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 size-full object-cover motion-reduce:hidden"
+        >
+          <source src="/kiosk-background.mp4" type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_-10%,rgba(4,81,120,0.68)_0%,rgba(2,36,54,0.84)_58%,rgba(1,22,31,0.92)_100%)]" />
+        {/* The film's sky is bright at the top, where the logo sits, and the
+            footer line is the smallest text on the screen — both get their own
+            band of shade rather than dimming the whole frame. */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(1,22,31,0.74)_0%,rgba(1,22,31,0.42)_38%,rgba(1,22,31,0.68)_100%)]" />
+        {/* Filling in a form is the one moment the film works against the
+            screen — it carries its own logo and moving hands right where the
+            fields sit. It stays, but well behind the work. */}
+        {step === "form" ? (
+          <div className="absolute inset-0 bg-[#01161f]/60" />
+        ) : null}
         <div className="absolute -left-40 top-1/3 size-[36rem] rounded-full bg-gold-300/[0.07] blur-3xl" />
       </div>
 
