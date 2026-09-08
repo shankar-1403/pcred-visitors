@@ -110,6 +110,19 @@ export default function VisitorAlert() {
 
   const permission = answeredPermission ?? browserPermission;
 
+  // Permission may already have been granted before this device ever ran
+  // this push-registration code (e.g. from the earlier in-tab-only alert
+  // feature) — in that case the "Enable" button never shows again, so this
+  // is the only place a token gets saved for that device.
+  const registeredStaffId = useRef<string | null>(null);
+  useEffect(() => {
+    if (permission !== "granted" || !myStaffRecord) return;
+    if (registeredStaffId.current === myStaffRecord.id) return;
+
+    registeredStaffId.current = myStaffRecord.id;
+    void registerPushToken(myStaffRecord.id);
+  }, [permission, myStaffRecord]);
+
   // Ids already seen. Seeded from the first snapshot so opening a page never
   // replays a backlog of alerts for visitors who arrived hours ago.
   const seenIds = useRef<Set<string> | null>(null);
@@ -180,16 +193,15 @@ export default function VisitorAlert() {
 
     try {
       // Must be called from a real click — browsers reject a bare page-load ask.
+      // Token registration itself happens in the effect above, which reacts
+      // to this permission change the same way it does for a device that
+      // was already granted before this page ever loaded.
       const result = await Notification.requestPermission();
       setAnsweredPermission(result);
-
-      if (result === "granted" && myStaffRecord) {
-        void registerPushToken(myStaffRecord.id);
-      }
     } catch {
       // Denied or unsupported: the in-app alert still works on its own.
     }
-  }, [myStaffRecord]);
+  }, []);
 
   const current = queue[0];
 
