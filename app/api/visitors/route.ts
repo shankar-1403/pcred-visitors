@@ -5,7 +5,14 @@ export const runtime = "nodejs";
 const RTDB_URL = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const PHONE_RE = /^[+]?[\d\s()-]{7,20}$/;
+const NAME_RE = /^[\p{L}][\p{L}\s.'-]*$/u;
+
+/** A phone number is either a 10-digit local number or a 12-digit one with
+    the country code included (with or without a leading "+"). */
+function isValidPhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits.length === 10 || digits.length === 12;
+}
 
 /** Purposes the kiosk offers. Anything else is coerced to "Other". */
 const ALLOWED_PURPOSES = [
@@ -125,22 +132,44 @@ export async function POST(request: Request) {
     const visitorName = field(body.visitorName, 120);
     const visitorPhone = field(body.visitorPhone, 40);
     const visitorEmail = field(body.visitorEmail, 200);
+    const company = field(body.company, 160);
+    const visitorDesignation = field(body.designation, 120);
+    const visitorAddress = field(body.address, 300);
 
-    if (!staffId || !visitorName || !visitorPhone) {
+    if (
+      !staffId ||
+      !visitorName ||
+      !visitorPhone ||
+      !visitorEmail ||
+      !company ||
+      !visitorDesignation
+    ) {
       return NextResponse.json(
-        { error: "Please provide your name, phone number and who you are here to meet." },
+        {
+          error:
+            "Please provide your name, phone, email, company, designation, and who you are here to meet.",
+        },
         { status: 400 }
       );
     }
 
-    if (!PHONE_RE.test(visitorPhone)) {
+    if (!NAME_RE.test(visitorName)) {
       return NextResponse.json(
-        { error: "Please enter a valid phone number." },
+        { error: "Name can only contain letters." },
         { status: 400 }
       );
     }
 
-    if (visitorEmail && !EMAIL_RE.test(visitorEmail)) {
+    if (!isValidPhone(visitorPhone)) {
+      return NextResponse.json(
+        {
+          error: "Enter a 10-digit phone number, or 12 digits with the country code.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!EMAIL_RE.test(visitorEmail)) {
       return NextResponse.json(
         { error: "Please enter a valid email address." },
         { status: 400 }
@@ -185,7 +214,9 @@ export async function POST(request: Request) {
       visitorName,
       visitorPhone,
       visitorEmail,
-      company: field(body.company, 160),
+      company,
+      visitorDesignation,
+      visitorAddress,
       partySize,
       purpose,
       purposeNote: field(body.purposeNote, 500),

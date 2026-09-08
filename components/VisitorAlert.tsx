@@ -16,12 +16,11 @@ import {
   type VisitorRequest,
 } from "@/src/hooks/useVisitorRequests";
 
-/** Gap between chimes while a visitor is still waiting unacknowledged. */
-const CHIME_INTERVAL_MS = 4000;
-
 /**
  * Two-note chime built with the Web Audio API — deliberately no audio file, so
- * there is no asset to ship, cache-bust or 404.
+ * there is no asset to ship, cache-bust or 404. Plays once per visitor, not on
+ * a repeating loop — a single chime reads as a notification; a repeating one
+ * reads as an alarm.
  */
 function playChime() {
   if (typeof window === "undefined") return;
@@ -131,6 +130,9 @@ export default function VisitorAlert() {
       return [...prev, ...fresh.filter((request) => !existing.has(request.id))];
     });
 
+    // One chime per arrival, not a repeating loop — a notification, not an alarm.
+    playChime();
+
     if (
       typeof window !== "undefined" &&
       "Notification" in window &&
@@ -159,16 +161,6 @@ export default function VisitorAlert() {
       });
     }
   }, [requests, loading, user, router]);
-
-  // Keep chiming while someone is still standing at the door unacknowledged.
-  useEffect(() => {
-    if (queue.length === 0) return;
-
-    playChime();
-    const timer = setInterval(playChime, CHIME_INTERVAL_MS);
-
-    return () => clearInterval(timer);
-  }, [queue.length]);
 
   const dismiss = useCallback((id: string) => {
     setQueue((prev) => prev.filter((request) => request.id !== id));
@@ -203,113 +195,82 @@ export default function VisitorAlert() {
         </button>
       ) : null}
 
+      {/* A corner toast, not a takeover — it sits alongside whatever the
+          staff member is doing rather than blocking it, closer to how a
+          native OS notification behaves than to an alarm. */}
       <AnimatePresence>
         {current ? (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+            role="status"
+            aria-live="polite"
+            aria-label="Visitor waiting at the door"
+            initial={{ opacity: 0, y: -16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.98 }}
+            transition={{ duration: 0.22 }}
+            className="fixed right-4 top-4 z-[60] w-[calc(100%-2rem)] max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-navy-500/10 sm:right-5 sm:top-5"
           >
-            <div
-              aria-hidden
-              className="absolute inset-0 bg-brand-deep/55 backdrop-blur-sm"
-            />
+            <div className="flex items-center justify-between bg-navy-500 px-5 py-3 text-white">
+              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]">
+                <IconBellRinging className="size-4" />
+                Visitor at the door
+              </span>
+              <button
+                type="button"
+                onClick={() => dismiss(current.id)}
+                aria-label="Dismiss"
+                className="flex size-7 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-white/15"
+              >
+                <IconX className="size-3.5" />
+              </button>
+            </div>
 
-            <motion.div
-              role="alertdialog"
-              aria-modal="true"
-              aria-label="Visitor waiting at the door"
-              initial={{ opacity: 0, scale: 0.94, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              transition={{ duration: 0.25 }}
-              className="relative z-10 w-full max-w-md overflow-hidden rounded-4xl bg-white shadow-2xl"
-            >
-              <div className="flex items-center justify-between bg-navy-500 px-6 py-4 text-white">
-                <span className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.14em]">
-                  <IconBellRinging className="size-5" />
-                  Visitor at the door
+            <div className="p-5">
+              {(current.staffEmail ?? "").toLowerCase() ===
+              (user.email ?? "").toLowerCase() && user.email ? (
+                <span className="mb-2 inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                  For you
                 </span>
+              ) : null}
+
+              <h2 className="text-lg font-bold text-navy-500">
+                {current.visitorName}
+              </h2>
+              <p className="mt-0.5 text-sm text-stone-500">
+                Here to meet{" "}
+                <span className="font-medium text-navy-500">
+                  {current.staffName}
+                </span>{" "}
+                &middot; {current.purpose}
+              </p>
+
+              <div className="mt-4 flex gap-2">
                 <button
                   type="button"
                   onClick={() => dismiss(current.id)}
-                  aria-label="Dismiss"
-                  className="flex size-8 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-white/15"
+                  className="min-h-10 flex-1 cursor-pointer rounded-xl border border-navy-500/20 text-sm font-semibold text-navy-500 transition-colors hover:bg-navy-500/6"
                 >
-                  <IconX className="size-4" />
+                  Later
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismiss(current.id);
+                    router.push("/staff");
+                  }}
+                  className="min-h-10 flex-1 cursor-pointer rounded-xl bg-navy-500 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                >
+                  Respond now
                 </button>
               </div>
 
-              <div className="p-6">
-                {(current.staffEmail ?? "").toLowerCase() ===
-                (user.email ?? "").toLowerCase() && user.email ? (
-                  <span className="mb-3 inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                    For you
-                  </span>
-                ) : null}
-
-                <h2 className="text-2xl font-bold text-navy-500">
-                  {current.visitorName}
-                </h2>
-                <p className="mt-1 text-sm text-stone-500">
-                  Here to meet{" "}
-                  <span className="font-medium text-navy-500">
-                    {current.staffName}
-                  </span>
+              {queue.length > 1 ? (
+                <p className="mt-3 text-center text-xs text-stone-500">
+                  {queue.length - 1} more{" "}
+                  {queue.length - 1 === 1 ? "visitor" : "visitors"} waiting
                 </p>
-
-                <dl className="mt-5 space-y-2 text-sm">
-                  <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-stone-500">Purpose</dt>
-                    <dd className="text-navy-500">{current.purpose}</dd>
-                  </div>
-                  <div className="flex gap-2">
-                    <dt className="w-24 shrink-0 text-stone-500">Phone</dt>
-                    <dd className="text-navy-500">{current.visitorPhone}</dd>
-                  </div>
-                  {current.company ? (
-                    <div className="flex gap-2">
-                      <dt className="w-24 shrink-0 text-stone-500">Company</dt>
-                      <dd className="text-navy-500">{current.company}</dd>
-                    </div>
-                  ) : null}
-                  {current.purposeNote ? (
-                    <div className="flex gap-2">
-                      <dt className="w-24 shrink-0 text-stone-500">Note</dt>
-                      <dd className="text-navy-500">{current.purposeNote}</dd>
-                    </div>
-                  ) : null}
-                </dl>
-
-                <div className="mt-6 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => dismiss(current.id)}
-                    className="min-h-12 flex-1 cursor-pointer rounded-2xl border border-navy-500/20 text-sm font-semibold text-navy-500 transition-colors hover:bg-navy-500/6"
-                  >
-                    Later
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      dismiss(current.id);
-                      router.push("/staff");
-                    }}
-                    className="min-h-12 flex-1 cursor-pointer rounded-2xl bg-navy-500 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                  >
-                    Respond now
-                  </button>
-                </div>
-
-                {queue.length > 1 ? (
-                  <p className="mt-4 text-center text-xs text-stone-500">
-                    {queue.length - 1} more{" "}
-                    {queue.length - 1 === 1 ? "visitor" : "visitors"} waiting
-                  </p>
-                ) : null}
-              </div>
-            </motion.div>
+              ) : null}
+            </div>
           </motion.div>
         ) : null}
       </AnimatePresence>

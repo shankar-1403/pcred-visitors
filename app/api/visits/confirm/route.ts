@@ -14,6 +14,7 @@ interface VisitorRequestRecord {
   company?: string;
   purpose?: string;
   requestedFor?: number | null;
+  postponedTo?: number | null;
   status?: string;
 }
 
@@ -49,19 +50,24 @@ export async function POST(request: Request) {
       idToken
     );
 
-    if (!visit || visit.status !== "approved") {
+    if (!visit || !(visit.status === "approved" || visit.status === "postponed")) {
       return NextResponse.json(
         { error: "That visit is not approved." },
         { status: 400 }
       );
     }
 
+    const isPostponed = visit.status === "postponed";
+
     if (!visit.staffId) {
       return NextResponse.json({ calendarEventId: null, skipped: "no-staff" });
     }
 
-    // "Meet now" still earns a calendar block, starting immediately.
-    const start = visit.requestedFor ?? Date.now();
+    // "Meet now" still earns a calendar block, starting immediately. A
+    // postponed visit uses the time staff rescheduled it to instead.
+    const start = isPostponed
+      ? visit.postponedTo ?? Date.now()
+      : visit.requestedFor ?? Date.now();
     const end = start + DEFAULT_SLOT_MINUTES * 60_000;
 
     const calendarEventId = await rtdbPush(
@@ -74,6 +80,10 @@ export async function POST(request: Request) {
         end,
         allDay: false,
         isVisit: true,
+        // An instant "meet now" approval has no lead time to be reminded
+        // about; a postponed visit has a real future slot, so it's treated
+        // the same as a manually-added meeting for reminder purposes.
+        source: isPostponed ? "postponed" : "approved",
         ...(visit.purpose ? { location: visit.purpose } : {}),
       },
       idToken

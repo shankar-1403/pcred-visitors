@@ -3,16 +3,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  IconBriefcase,
   IconBuilding,
   IconCalendarTime,
   IconCheck,
   IconClock,
+  IconLink,
+  IconMapPin,
   IconPhone,
   IconUsers,
   IconX,
 } from "@tabler/icons-react";
 import { respondToRequest } from "@/src/lib/data";
 import { useAuth } from "@/src/context/AuthContext";
+import { useStaff } from "@/src/hooks/useStaff";
 import {
   useVisitorRequests,
   type VisitorRequest,
@@ -86,6 +90,17 @@ function useWaitingLabel(since?: number) {
 export default function VisitorsInbox() {
   const { user, profile } = useAuth();
   const { requests, loading } = useVisitorRequests();
+  const { staff } = useStaff();
+
+  const myStaffRecord = useMemo(
+    () =>
+      staff.find(
+        (member) =>
+          (member.email ?? "").trim().toLowerCase() ===
+          (user?.email ?? "").trim().toLowerCase()
+      ) ?? null,
+    [staff, user?.email]
+  );
 
   const [statusFilter, setStatusFilter] = useState<VisitorStatus | "all">("all");
   const [respondingTo, setRespondingTo] = useState<VisitorRequest | null>(null);
@@ -194,6 +209,9 @@ export default function VisitorsInbox() {
           </p>
         </div>
 
+        {myStaffRecord ? (
+          <CopyLinkButton staffId={myStaffRecord.id} />
+        ) : null}
       </section>
 
       {/* -------------------------------------------------- pending strip */}
@@ -375,7 +393,7 @@ export default function VisitorsInbox() {
                     </p>
                   ) : (
                     <p className="mt-2 text-xs text-stone-500 dark:text-white/50">
-                      The tablet will show{" "}
+                      The visitor&rsquo;s screen will show{" "}
                       {postponeCustom
                         ? formatDateTime(new Date(postponeCustom).getTime())
                         : formatTime(respondingSince + postponeMinutes * 60 * 1000)}
@@ -423,7 +441,7 @@ export default function VisitorsInbox() {
                 disabled={saving}
                 className="mt-6 min-h-12 w-full cursor-pointer rounded-2xl bg-navy-500 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {saving ? "Sending…" : "Send response to the tablet"}
+                {saving ? "Sending…" : "Send response to the visitor"}
               </button>
             </motion.div>
           </motion.div>
@@ -661,6 +679,12 @@ function PendingCard({
             {request.company}
           </span>
         ) : null}
+        {request.visitorDesignation ? (
+          <span className="flex items-center gap-1.5">
+            <IconBriefcase className="size-4 text-stone-500 dark:text-white/50" />
+            {request.visitorDesignation}
+          </span>
+        ) : null}
         {(request.partySize ?? 1) > 1 ? (
           <span className="flex items-center gap-1.5">
             <IconUsers className="size-4 text-stone-500 dark:text-white/50" />
@@ -672,6 +696,13 @@ function PendingCard({
       {request.purposeNote ? (
         <p className="mt-4 rounded-2xl bg-navy-500/[0.05] px-4 py-3 text-sm leading-relaxed text-navy-500 dark:text-white">
           &ldquo;{request.purposeNote}&rdquo;
+        </p>
+      ) : null}
+
+      {request.visitorAddress ? (
+        <p className="mt-3 flex items-start gap-1.5 text-sm text-stone-600 dark:text-white/60">
+          <IconMapPin className="mt-0.5 size-4 shrink-0 text-stone-500 dark:text-white/50" />
+          {request.visitorAddress}
         </p>
       ) : null}
 
@@ -705,5 +736,43 @@ function PendingCard({
         </button>
       </div>
     </motion.article>
+  );
+}
+
+/** Copies this staff member's own check-in link — visitors who open it skip
+    straight to "who are you here to meet", since the link already says who. */
+function CopyLinkButton({ staffId }: { staffId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      const url = `${window.location.origin}/visit/${staffId}`;
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access can be blocked by the browser; nothing to recover
+      // from beyond letting the visitor try again.
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-navy-500/25 dark:border-white/15 px-4 text-sm font-medium text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
+    >
+      {copied ? (
+        <>
+          <IconCheck className="size-4" />
+          Copied
+        </>
+      ) : (
+        <>
+          <IconLink className="size-4" />
+          Copy your visitor link
+        </>
+      )}
+    </button>
   );
 }

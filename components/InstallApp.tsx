@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { IconDeviceMobile, IconShare2, IconX } from "@tabler/icons-react";
+import { IconDownload, IconShare2, IconX } from "@tabler/icons-react";
 
 /**
  * The prompt that puts this on someone's home screen.
@@ -133,12 +133,12 @@ export default function InstallApp() {
           aria-hidden
           className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-navy-500/10 text-navy-500"
         >
-          <IconDeviceMobile className="size-5" />
+          <IconDownload className="size-5" />
         </span>
 
         <div className="min-w-0 flex-1 pr-8 sm:pr-0">
           <p className="text-sm font-semibold text-navy-500">
-            Install PCRED Visitors on this phone
+            Install PCRED Visitors
           </p>
 
           {isIOS ? (

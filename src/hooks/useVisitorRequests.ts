@@ -11,6 +11,8 @@ export interface VisitorRequest {
   visitorPhone?: string;
   visitorEmail?: string;
   company?: string;
+  visitorDesignation?: string;
+  visitorAddress?: string;
   partySize?: number;
   purpose?: string;
   purposeNote?: string;

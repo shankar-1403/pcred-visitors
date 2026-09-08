@@ -130,7 +130,15 @@ function CalendarView() {
   const [dayModalOpen, setDayModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addError, setAddError] = useState("");
-  const [form, setForm] = useState({ title: "", start: "10:00", end: "11:00" });
+  const [form, setForm] = useState({
+    title: "",
+    start: "10:00",
+    end: "11:00",
+    clientName: "",
+    clientPhone: "",
+    clientEmail: "",
+    clientCompany: "",
+  });
 
   useEffect(() => {
     if (!user) return;
@@ -218,6 +226,11 @@ function CalendarView() {
       return;
     }
 
+    if (!form.clientName.trim()) {
+      setAddError("Give the client's name.");
+      return;
+    }
+
     if (end <= start) {
       setAddError("The end time must be after the start.");
       return;
@@ -226,9 +239,25 @@ function CalendarView() {
     setSaving(true);
 
     try {
-      await createMyEvent({ title: form.title.trim(), start, end });
+      await createMyEvent({
+        title: form.title.trim(),
+        start,
+        end,
+        clientName: form.clientName.trim(),
+        clientPhone: form.clientPhone.trim(),
+        clientEmail: form.clientEmail.trim(),
+        clientCompany: form.clientCompany.trim(),
+      });
       setAddOpen(false);
-      setForm({ title: "", start: "10:00", end: "11:00" });
+      setForm({
+        title: "",
+        start: "10:00",
+        end: "11:00",
+        clientName: "",
+        clientPhone: "",
+        clientEmail: "",
+        clientCompany: "",
+      });
       reload();
     } catch (err: unknown) {
       setAddError(
@@ -592,38 +621,92 @@ function CalendarView() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label
-                      htmlFor="eventStart"
+                      htmlFor="clientName"
                       className="mb-2 block text-sm font-medium text-navy-500 dark:text-white"
                     >
-                      From
+                      Client name *
                     </label>
                     <input
-                      id="eventStart"
-                      type="time"
-                      value={form.start}
+                      id="clientName"
+                      required
+                      value={form.clientName}
                       onChange={(e) =>
-                        setForm((prev) => ({ ...prev, start: e.target.value }))
+                        setForm((prev) => ({ ...prev, clientName: e.target.value }))
                       }
+                      placeholder="Who's the meeting with"
                       className="min-h-12 w-full rounded-xl border border-navy-500/20 dark:border-white/15 px-4 text-navy-500 dark:text-white outline-none focus:border-navy-500"
                     />
                   </div>
                   <div>
                     <label
-                      htmlFor="eventEnd"
+                      htmlFor="clientCompany"
                       className="mb-2 block text-sm font-medium text-navy-500 dark:text-white"
                     >
-                      Until
+                      Company
                     </label>
                     <input
-                      id="eventEnd"
-                      type="time"
-                      value={form.end}
+                      id="clientCompany"
+                      value={form.clientCompany}
                       onChange={(e) =>
-                        setForm((prev) => ({ ...prev, end: e.target.value }))
+                        setForm((prev) => ({ ...prev, clientCompany: e.target.value }))
                       }
+                      placeholder="Optional"
                       className="min-h-12 w-full rounded-xl border border-navy-500/20 dark:border-white/15 px-4 text-navy-500 dark:text-white outline-none focus:border-navy-500"
                     />
                   </div>
+                  <div>
+                    <label
+                      htmlFor="clientPhone"
+                      className="mb-2 block text-sm font-medium text-navy-500 dark:text-white"
+                    >
+                      Phone
+                    </label>
+                    <input
+                      id="clientPhone"
+                      type="tel"
+                      inputMode="tel"
+                      value={form.clientPhone}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, clientPhone: e.target.value }))
+                      }
+                      placeholder="Optional"
+                      className="min-h-12 w-full rounded-xl border border-navy-500/20 dark:border-white/15 px-4 text-navy-500 dark:text-white outline-none focus:border-navy-500"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="clientEmail"
+                      className="mb-2 block text-sm font-medium text-navy-500 dark:text-white"
+                    >
+                      Email
+                    </label>
+                    <input
+                      id="clientEmail"
+                      type="email"
+                      inputMode="email"
+                      value={form.clientEmail}
+                      onChange={(e) =>
+                        setForm((prev) => ({ ...prev, clientEmail: e.target.value }))
+                      }
+                      placeholder="Optional"
+                      className="min-h-12 w-full rounded-xl border border-navy-500/20 dark:border-white/15 px-4 text-navy-500 dark:text-white outline-none focus:border-navy-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <TimeField
+                    id="eventStart"
+                    label="From"
+                    value={form.start}
+                    onChange={(value) => setForm((prev) => ({ ...prev, start: value }))}
+                  />
+                  <TimeField
+                    id="eventEnd"
+                    label="Until"
+                    value={form.end}
+                    onChange={(value) => setForm((prev) => ({ ...prev, end: value }))}
+                  />
                 </div>
 
                 {addError ? (
@@ -644,6 +727,86 @@ function CalendarView() {
           </motion.div>
         ) : null}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** "HH:MM" (24h) <-> a 12-hour hour/minute/AM-PM triple — a native
+    `type="time"` input's 12h/24h display follows the browser's own locale,
+    which isn't reliable, so the picker below is built from three selects
+    instead, always showing AM/PM regardless of device or browser settings. */
+function parseTime(hhmm: string) {
+  const [h = 0, m = 0] = hhmm.split(":").map(Number);
+  const period: "AM" | "PM" = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return { hour12, minute: m, period };
+}
+
+function buildTime(hour12: number, minute: number, period: "AM" | "PM") {
+  const hour24 = (hour12 % 12) + (period === "PM" ? 12 : 0);
+  return `${String(hour24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+const TIME_SELECT_CLASS =
+  "min-h-12 flex-1 rounded-xl border border-navy-500/20 dark:border-white/15 bg-transparent px-2 text-center text-navy-500 dark:text-white outline-none focus:border-navy-500";
+
+function TimeField({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const { hour12, minute, period } = parseTime(value);
+
+  return (
+    <div>
+      <label
+        htmlFor={`${id}-hour`}
+        className="mb-2 block text-sm font-medium text-navy-500 dark:text-white"
+      >
+        {label}
+      </label>
+      <div className="flex gap-2">
+        <select
+          id={`${id}-hour`}
+          aria-label={`${label} — hour`}
+          value={hour12}
+          onChange={(e) => onChange(buildTime(Number(e.target.value), minute, period))}
+          className={TIME_SELECT_CLASS}
+        >
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+            <option key={h} value={h}>
+              {h}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={`${label} — minute`}
+          value={minute}
+          onChange={(e) => onChange(buildTime(hour12, Number(e.target.value), period))}
+          className={TIME_SELECT_CLASS}
+        >
+          {Array.from({ length: 60 }, (_, i) => i).map((m) => (
+            <option key={m} value={m}>
+              {String(m).padStart(2, "0")}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={`${label} — AM or PM`}
+          value={period}
+          onChange={(e) => onChange(buildTime(hour12, minute, e.target.value as "AM" | "PM"))}
+          className={TIME_SELECT_CLASS}
+        >
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </select>
+      </div>
     </div>
   );
 }

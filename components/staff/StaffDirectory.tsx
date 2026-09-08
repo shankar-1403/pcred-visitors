@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { IconSearch, IconX } from "@tabler/icons-react";
+import { IconCheck, IconLink, IconSearch, IconX } from "@tabler/icons-react";
 import { createStaffAccount, patchStaffMember, saveStaffMember } from "@/src/lib/data";
 import { useAuth } from "@/src/context/AuthContext";
 import { useStaff, type Staff } from "@/src/hooks/useStaff";
@@ -223,7 +223,7 @@ export default function StaffDirectory() {
             Staff directory
           </h1>
           <p className="mt-1 text-sm text-stone-500 dark:text-white/50">
-            Everyone listed here appears on the front-desk tablet. Give
+            Everyone listed here appears on the check-in screen. Give
             someone a login email and their own visitors alert them directly.
           </p>
         </div>
@@ -472,7 +472,7 @@ export default function StaffDirectory() {
                       className="size-4 accent-navy-500"
                     />
                     <label htmlFor="active" className="text-sm font-medium text-navy-500 dark:text-white">
-                      Active (shown on the front-desk tablet)
+                      Active (shown on the check-in screen)
                     </label>
                   </div>
 
@@ -504,7 +504,7 @@ export default function StaffDirectory() {
           ) : filtered.length === 0 ? (
             <li className="px-4 py-6 text-center text-sm text-stone-500 dark:text-white/50">
               {staff.length === 0
-                ? "No staff added yet. Add someone so the front-desk tablet has a list."
+                ? "No staff added yet. Add someone so the check-in screen has a list."
                 : "No staff match that search."}
             </li>
           ) : (
@@ -551,6 +551,7 @@ export default function StaffDirectory() {
                   >
                     {member.active ?? true ? "Deactivate" : "Activate"}
                   </button>
+                  <CopyVisitorLinkButton staffId={member.id} compact />
                 </div>
               </li>
             ))
@@ -580,7 +581,7 @@ export default function StaffDirectory() {
                 <tr>
                   <td colSpan={6} className="px-4 py-6 text-center text-stone-500 dark:text-white/50">
                     {staff.length === 0
-                      ? "No staff added yet. Add someone so the front-desk tablet has a list."
+                      ? "No staff added yet. Add someone so the check-in screen has a list."
                       : "No staff match that search."}
                   </td>
                 </tr>
@@ -634,6 +635,7 @@ export default function StaffDirectory() {
                         >
                           {member.active ?? true ? "Deactivate" : "Activate"}
                         </button>
+                        <CopyVisitorLinkButton staffId={member.id} compact />
                       </div>
                     </td>
                   </tr>
@@ -655,5 +657,53 @@ export default function StaffDirectory() {
         )}
       </section>
     </div>
+  );
+}
+
+/** Copies a staff member's own check-in link — visitors who open it skip
+    straight to "who are you here to meet", since the link already says who. */
+function CopyVisitorLinkButton({
+  staffId,
+  compact,
+}: {
+  staffId: string;
+  compact?: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      const url = `${window.location.origin}/visit/${staffId}`;
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access can be blocked by the browser; nothing to recover
+      // from beyond letting the person try again.
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className={
+        compact
+          ? "flex cursor-pointer items-center gap-1.5 rounded-xl border border-navy-500/25 dark:border-white/15 px-3 py-1 text-xs text-navy-500 dark:text-white transition-colors hover:bg-navy-500/10 dark:hover:bg-white/10"
+          : "flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-navy-500/25 dark:border-white/15 text-sm font-medium text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
+      }
+    >
+      {copied ? (
+        <>
+          <IconCheck className="size-3.5" />
+          Copied
+        </>
+      ) : (
+        <>
+          <IconLink className="size-3.5" />
+          Link
+        </>
+      )}
+    </button>
   );
 }

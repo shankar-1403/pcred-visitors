@@ -36,6 +36,21 @@ interface CalendarEventRecord {
   allDay: boolean;
   location?: string;
   isVisit: boolean;
+  /** Who wrote this event, and why — the reminder job only emails staff
+      about meetings they arranged themselves, never an instant walk-in
+      approval, which has no lead time to be reminded about. */
+  source: "manual" | "approved" | "postponed";
+  clientName?: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  clientCompany?: string;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function isValidPhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits.length === 10 || digits.length === 12;
 }
 
 async function callerContext(request: Request) {
@@ -109,15 +124,27 @@ export async function POST(request: Request) {
       start?: number;
       end?: number;
       location?: string;
+      clientName?: string;
+      clientPhone?: string;
+      clientEmail?: string;
+      clientCompany?: string;
     };
 
     const title = String(body.title ?? "").trim().slice(0, 200);
     const start = Number(body.start);
     const end = Number(body.end);
     const location = String(body.location ?? "").trim().slice(0, 200);
+    const clientName = String(body.clientName ?? "").trim().slice(0, 120);
+    const clientPhone = String(body.clientPhone ?? "").trim().slice(0, 40);
+    const clientEmail = String(body.clientEmail ?? "").trim().slice(0, 200);
+    const clientCompany = String(body.clientCompany ?? "").trim().slice(0, 160);
 
     if (!title) {
       return NextResponse.json({ error: "Give it a title." }, { status: 400 });
+    }
+
+    if (!clientName) {
+      return NextResponse.json({ error: "Give the client's name." }, { status: 400 });
     }
 
     if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
@@ -134,13 +161,32 @@ export async function POST(request: Request) {
       );
     }
 
+    if (clientPhone && !isValidPhone(clientPhone)) {
+      return NextResponse.json(
+        { error: "Enter a 10-digit phone number, or 12 digits with the country code." },
+        { status: 400 }
+      );
+    }
+
+    if (clientEmail && !EMAIL_RE.test(clientEmail)) {
+      return NextResponse.json(
+        { error: "Enter a valid email, such as name@company.com." },
+        { status: 400 }
+      );
+    }
+
     const record: CalendarEventRecord = {
       title,
       start,
       end,
       allDay: false,
       isVisit: false,
+      source: "manual",
       ...(location ? { location } : {}),
+      ...(clientName ? { clientName } : {}),
+      ...(clientPhone ? { clientPhone } : {}),
+      ...(clientEmail ? { clientEmail } : {}),
+      ...(clientCompany ? { clientCompany } : {}),
     };
 
     const id = await rtdbPush(`calendar_events/${staffId}`, record, idToken);

@@ -9,7 +9,6 @@ import {
   update,
 } from "firebase/database";
 import { db, HAS_FIREBASE_CONFIG } from "./firebase";
-import type { Slot } from "./availability";
 import type { Role, RoleRecord } from "@/src/hooks/useRole";
 import type { Staff } from "@/src/hooks/useStaff";
 import type { VisitorRequest } from "@/src/hooks/useVisitorRequests";
@@ -191,45 +190,16 @@ export function subscribeRequest(
   );
 }
 
-/* ---------------------------------------------------------- availability */
-
-export interface Availability {
-  staffName: string;
-  freeNow: boolean;
-  /** False when today is outside the configured working days. */
-  openToday: boolean;
-  slots: Slot[];
-  now: number;
-}
-
-export async function fetchAvailability(
-  staffId: string
-): Promise<Availability> {
-  const response = await fetch(
-    `/api/availability?staffId=${encodeURIComponent(staffId)}`,
-    { cache: "no-store" }
-  );
-
-  const data = (await response.json()) as Availability & { error?: string };
-
-  if (!response.ok) {
-    throw new Error(data.error ?? "Could not check availability.");
-  }
-
-  return data;
-}
-
 export interface NewVisitorRequest {
   staffId: string;
   visitorName: string;
   visitorPhone: string;
   visitorEmail: string;
   company: string;
-  partySize: number;
+  designation: string;
+  address: string;
   purpose: string;
   purposeNote: string;
-  /** Chosen slot start, or null for "meet now". */
-  requestedFor: number | null;
 }
 
 export async function createVisitorRequest(
@@ -300,6 +270,10 @@ export async function createMyEvent(event: {
   start: number;
   end: number;
   location?: string;
+  clientName?: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  clientCompany?: string;
 }): Promise<void> {
   const response = await fetch("/api/calendar", {
     method: "POST",
@@ -357,8 +331,9 @@ export async function respondToRequest(
 
   // The visitor has already been told the outcome by the write above, so a
   // calendar failure is logged and swallowed rather than surfaced as a failed
-  // approval.
-  if (patch.status === "approved") {
+  // approval. A postponed visit gets a calendar slot too — that's the whole
+  // point of postponing rather than declining — just at the rescheduled time.
+  if (patch.status === "approved" || patch.status === "postponed") {
     try {
       await fetch("/api/visits/confirm", {
         method: "POST",
@@ -370,7 +345,7 @@ export async function respondToRequest(
       });
     } catch (error) {
       console.error(
-        "[visitor-app] approved, but could not add it to the calendar:",
+        "[visitor-app] responded, but could not add it to the calendar:",
         error
       );
     }
