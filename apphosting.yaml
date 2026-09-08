@@ -52,12 +52,14 @@ env:
 
   # --- Real credentials: set with `firebase apphosting:secrets:set <name>`,
   # then this file just references the secret by name, never the value.
-  - variable: FIREBASE_ADMIN_CLIENT_EMAIL
+  # Named ADMIN_SDK_* rather than FIREBASE_ADMIN_* — App Hosting reserves any
+  # variable starting with FIREBASE_ (also X_GOOGLE_, EXT_, KIT_) for itself.
+  - variable: ADMIN_SDK_CLIENT_EMAIL
     secret: firebase-admin-client-email
     availability:
       - RUNTIME
 
-  - variable: FIREBASE_ADMIN_PRIVATE_KEY
+  - variable: ADMIN_SDK_PRIVATE_KEY
     secret: firebase-admin-private-key
     availability:
       - RUNTIME

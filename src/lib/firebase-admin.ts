@@ -12,8 +12,11 @@ import { getDatabase } from "firebase-admin/database";
  */
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-const CLIENT_EMAIL = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-const PRIVATE_KEY = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
+// Named ADMIN_SDK_* rather than FIREBASE_ADMIN_* — Firebase App Hosting
+// reserves any env var starting with FIREBASE_ (also X_GOOGLE_, EXT_, KIT_)
+// for its own use and refuses to let a deploy config define one.
+const CLIENT_EMAIL = process.env.ADMIN_SDK_CLIENT_EMAIL;
+const PRIVATE_KEY = process.env.ADMIN_SDK_PRIVATE_KEY?.replace(/\\n/g, "\n");
 const DATABASE_URL = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL;
 
 export const HAS_ADMIN_CONFIG = Boolean(
@@ -25,7 +28,7 @@ const APP_NAME = "visitor-admin";
 function adminApp() {
   if (!HAS_ADMIN_CONFIG) {
     throw new Error(
-      "Firebase Admin is not configured — set FIREBASE_ADMIN_CLIENT_EMAIL and FIREBASE_ADMIN_PRIVATE_KEY."
+      "Firebase Admin is not configured — set ADMIN_SDK_CLIENT_EMAIL and ADMIN_SDK_PRIVATE_KEY."
     );
   }
 

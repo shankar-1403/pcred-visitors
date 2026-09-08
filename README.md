@@ -87,7 +87,7 @@ Sign in at `/staff` and you are an admin. Everyone after this you create from
 inside the app.
 
 To create logins from the app, add the Admin SDK credentials to `.env.local`
-(`FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY`). Without them the
+(`ADMIN_SDK_CLIENT_EMAIL`, `ADMIN_SDK_PRIVATE_KEY`). Without them the
 app still runs — the Create login button just reports that it is not configured.
 
 ### 5. Add the staff directory
