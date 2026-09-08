@@ -1,14 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Firebase App Hosting's Cloud Run container has no `sharp` and a
-  // read-only filesystem, so next/image's built-in optimizer (which needs
-  // both) silently fails there even though it works in local dev. These are
-  // all small, already-compressed local files (logo, icons) — nothing is
-  // lost by serving them as-is instead of through the broken optimizer.
-  images: {
-    unoptimized: true,
-  },
+  // Firebase App Hosting runs the standalone server output. Next.js doesn't
+  // copy public/ or .next/static into that output on its own — the
+  // `postbuild` script (scripts/copy-standalone.mjs) does that, the same
+  // fix already used on the PCRED website project for this exact problem.
+  output: "standalone",
 };
 
 export default nextConfig;
