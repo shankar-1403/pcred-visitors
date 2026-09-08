@@ -1,5 +1,6 @@
 import {
   equalTo,
+  get,
   onValue,
   orderByChild,
   push,
@@ -9,9 +10,24 @@ import {
   update,
 } from "firebase/database";
 import { db, HAS_FIREBASE_CONFIG } from "./firebase";
+import type { BusyInterval } from "./availability";
 import type { Role, RoleRecord } from "@/src/hooks/useRole";
 import type { Staff } from "@/src/hooks/useStaff";
 import type { VisitorRequest } from "@/src/hooks/useVisitorRequests";
+
+/**
+ * A staff member's busy blocks — timing only, never a title. Public read, by
+ * database rule design: this is exactly what a booking link needs to grey
+ * out slots without ever exposing what any of their meetings actually are.
+ */
+export async function fetchBusyBlocks(staffId: string): Promise<BusyInterval[]> {
+  if (!HAS_FIREBASE_CONFIG) return [];
+
+  const snapshot = await get(ref(db, `busy_blocks/${staffId}`));
+  const value = snapshot.val() as Record<string, BusyInterval> | null;
+
+  return Object.values(value ?? {});
+}
 
 /**
  * Every read and write in the app goes through here, so the pages and hooks
@@ -200,6 +216,9 @@ export interface NewVisitorRequest {
   address: string;
   purpose: string;
   purposeNote: string;
+  /** The slot picked on a staff member's own booking link. Omitted (or null)
+      on the walk-in kiosk, which has no schedule to pick from. */
+  requestedFor?: number | null;
 }
 
 export async function createVisitorRequest(
@@ -231,6 +250,13 @@ export interface CalendarEvent {
   location?: string;
   /** True when this app created it from a visitor check-in. */
   isVisit: boolean;
+  /** Only a "manual" event (one staff added themselves) can be edited from
+      the calendar — a visitor booking's fields belong to that request. */
+  source?: "manual" | "approved" | "postponed";
+  clientName?: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  clientCompany?: string;
 }
 
 export interface CalendarResult {
@@ -285,6 +311,34 @@ export async function createMyEvent(event: {
 
   if (!response.ok) {
     throw new Error(data.error ?? "Could not add that to your calendar.");
+  }
+}
+
+/** Edits an event staff added themselves — same notification as adding a new
+    one fires again, since it reads as freshly scheduled either way. */
+export async function updateMyEvent(
+  id: string,
+  event: {
+    title: string;
+    start: number;
+    end: number;
+    location?: string;
+    clientName?: string;
+    clientPhone?: string;
+    clientEmail?: string;
+    clientCompany?: string;
+  }
+): Promise<void> {
+  const response = await fetch("/api/calendar", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({ id, ...event }),
+  });
+
+  const data = (await response.json()) as { error?: string };
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Could not update that event.");
   }
 }
 

@@ -54,6 +54,61 @@ function isValidPhone(value: string) {
   return digits.length === 10 || digits.length === 12;
 }
 
+interface ParsedEventBody {
+  title: string;
+  start: number;
+  end: number;
+  location: string;
+  clientName: string;
+  clientPhone: string;
+  clientEmail: string;
+  clientCompany: string;
+}
+
+/** Shared by create and edit: same fields, same rules either way. */
+function parseEventBody(body: unknown): ParsedEventBody | { error: string } {
+  const b = (body ?? {}) as {
+    title?: string;
+    start?: number;
+    end?: number;
+    location?: string;
+    clientName?: string;
+    clientPhone?: string;
+    clientEmail?: string;
+    clientCompany?: string;
+  };
+
+  const title = String(b.title ?? "").trim().slice(0, 200);
+  const start = Number(b.start);
+  const end = Number(b.end);
+  const location = String(b.location ?? "").trim().slice(0, 200);
+  const clientName = String(b.clientName ?? "").trim().slice(0, 120);
+  const clientPhone = String(b.clientPhone ?? "").trim().slice(0, 40);
+  const clientEmail = String(b.clientEmail ?? "").trim().slice(0, 200);
+  const clientCompany = String(b.clientCompany ?? "").trim().slice(0, 160);
+
+  if (!title) return { error: "Give it a title." };
+  if (!clientName) return { error: "Give the client's name." };
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+    return { error: "The end time must be after the start." };
+  }
+
+  if (end - start > 24 * 60 * 60 * 1000) {
+    return { error: "An event can't run longer than a day." };
+  }
+
+  if (clientPhone && !isValidPhone(clientPhone)) {
+    return { error: "Enter a 10-digit phone number, or 12 digits with the country code." };
+  }
+
+  if (clientEmail && !EMAIL_RE.test(clientEmail)) {
+    return { error: "Enter a valid email, such as name@company.com." };
+  }
+
+  return { title, start, end, location, clientName, clientPhone, clientEmail, clientCompany };
+}
+
 async function callerContext(request: Request) {
   const idToken = bearerToken(request);
   const { email } = await verifyIdToken(idToken);
@@ -120,61 +175,12 @@ export async function POST(request: Request) {
   try {
     const { idToken, staffId, email } = await callerContext(request);
 
-    const body = (await request.json()) as {
-      title?: string;
-      start?: number;
-      end?: number;
-      location?: string;
-      clientName?: string;
-      clientPhone?: string;
-      clientEmail?: string;
-      clientCompany?: string;
-    };
-
-    const title = String(body.title ?? "").trim().slice(0, 200);
-    const start = Number(body.start);
-    const end = Number(body.end);
-    const location = String(body.location ?? "").trim().slice(0, 200);
-    const clientName = String(body.clientName ?? "").trim().slice(0, 120);
-    const clientPhone = String(body.clientPhone ?? "").trim().slice(0, 40);
-    const clientEmail = String(body.clientEmail ?? "").trim().slice(0, 200);
-    const clientCompany = String(body.clientCompany ?? "").trim().slice(0, 160);
-
-    if (!title) {
-      return NextResponse.json({ error: "Give it a title." }, { status: 400 });
+    const parsed = parseEventBody(await request.json());
+    if ("error" in parsed) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
-
-    if (!clientName) {
-      return NextResponse.json({ error: "Give the client's name." }, { status: 400 });
-    }
-
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
-      return NextResponse.json(
-        { error: "The end time must be after the start." },
-        { status: 400 }
-      );
-    }
-
-    if (end - start > 24 * 60 * 60 * 1000) {
-      return NextResponse.json(
-        { error: "An event can't run longer than a day." },
-        { status: 400 }
-      );
-    }
-
-    if (clientPhone && !isValidPhone(clientPhone)) {
-      return NextResponse.json(
-        { error: "Enter a 10-digit phone number, or 12 digits with the country code." },
-        { status: 400 }
-      );
-    }
-
-    if (clientEmail && !EMAIL_RE.test(clientEmail)) {
-      return NextResponse.json(
-        { error: "Enter a valid email, such as name@company.com." },
-        { status: 400 }
-      );
-    }
+    const { title, start, end, location, clientName, clientPhone, clientEmail, clientCompany } =
+      parsed;
 
     const record: CalendarEventRecord = {
       title,
@@ -219,5 +225,82 @@ export async function POST(request: Request) {
     return NextResponse.json({ id });
   } catch (error) {
     return errorResponse(error, "Could not add that to your calendar.");
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const { idToken, staffId, email } = await callerContext(request);
+
+    const body = (await request.json()) as { id?: string };
+    const id = String(body.id ?? "").trim();
+
+    if (!id) {
+      return NextResponse.json({ error: "Missing event id." }, { status: 400 });
+    }
+
+    // Only an event staff wrote themselves can be edited here — a visitor
+    // booking's fields are owned by the visitor-request flow, not this form.
+    // Keyed on `isVisit`, not `source`: that field existed from the start,
+    // so it's also true for events added before `source` was introduced —
+    // checking `source === "manual"` would wrongly lock out anything older.
+    const existing = await rtdbGet<CalendarEventRecord>(
+      `calendar_events/${staffId}/${id}`,
+      idToken
+    );
+
+    if (!existing || existing.isVisit) {
+      return NextResponse.json({ error: "That event can't be edited here." }, { status: 404 });
+    }
+
+    const parsed = parseEventBody(body);
+    if ("error" in parsed) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const { title, start, end, location, clientName, clientPhone, clientEmail, clientCompany } =
+      parsed;
+
+    const record: CalendarEventRecord = {
+      title,
+      start,
+      end,
+      allDay: false,
+      isVisit: false,
+      source: "manual",
+      // A changed time re-earns the 15-minute reminder — the old one was for
+      // whatever slot this used to be at.
+      ...(location ? { location } : {}),
+      ...(clientName ? { clientName } : {}),
+      ...(clientPhone ? { clientPhone } : {}),
+      ...(clientEmail ? { clientEmail } : {}),
+      ...(clientCompany ? { clientCompany } : {}),
+    };
+
+    await rtdbSet(`calendar_events/${staffId}/${id}`, record, idToken);
+    await rtdbSet(`busy_blocks/${staffId}/${id}`, { start, end }, idToken);
+
+    // Same notification as a fresh create — from the recipient's side,
+    // an edited meeting is no different from a newly scheduled one.
+    try {
+      const staffName = await rtdbGet<string>(`staff/${staffId}/name`, idToken);
+
+      await sendMeetingEmail({
+        kind: "created",
+        staffName: staffName ?? "",
+        staffEmail: email,
+        clientName,
+        clientEmail,
+        clientCompany,
+        title,
+        start,
+        location,
+      });
+    } catch (error) {
+      console.error("[visitor-app] event updated, but could not send the email:", error);
+    }
+
+    return NextResponse.json({ id });
+  } catch (error) {
+    return errorResponse(error, "Could not update that event.");
   }
 }

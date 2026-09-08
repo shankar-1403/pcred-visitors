@@ -156,3 +156,49 @@ export function isFreeNow(now: number, busy: BusyInterval[]): boolean {
 export function nextAvailable(slots: Slot[]): Slot | null {
   return slots.find((slot) => slot.available) ?? null;
 }
+
+/**
+ * The slot grid for one whole chosen day — a staff member's booking link
+ * (someone browsing ahead of time, not standing at the door) has no reason
+ * to be bounded by `MAX_LOOKAHEAD_HOURS`, which only exists to keep a walk-in
+ * from being offered a slot hours from now. If the chosen day is today, slots
+ * already in the past (or too soon to be reachable) are simply left out.
+ */
+export function buildDaySlots({
+  dayStart,
+  now,
+  busy,
+  slotMinutes = DEFAULT_SLOT_MINUTES,
+}: {
+  /** Midnight, local time, of the day being viewed. */
+  dayStart: number;
+  now: number;
+  busy: BusyInterval[];
+  slotMinutes?: number;
+}): Slot[] {
+  const size = Math.max(5, Math.min(slotMinutes, 120));
+  const isToday = startOfDay(now) === dayStart;
+
+  const earliestMinutes = isToday
+    ? minutesIntoDay(now + MIN_LEAD_MINUTES * 60_000)
+    : 0;
+  const firstMinutes = Math.max(0, Math.ceil(earliestMinutes / size) * size);
+
+  const slots: Slot[] = [];
+
+  for (
+    let startMinutes = firstMinutes;
+    startMinutes + size <= 24 * 60;
+    startMinutes += size
+  ) {
+    const start = dayStart + startMinutes * 60_000;
+    const end = start + size * 60_000;
+
+    const slot: Slot = { start, end, available: true };
+    slot.available = !busy.some((interval) => overlaps(slot, interval));
+
+    slots.push(slot);
+  }
+
+  return slots;
+}

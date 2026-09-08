@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
 } from "react";
@@ -21,9 +22,11 @@ import {
 import {
   createMyEvent,
   fetchMyEvents,
+  updateMyEvent,
   type CalendarEvent,
 } from "@/src/lib/data";
 import { useAuth } from "@/src/context/AuthContext";
+import { useTheme } from "@/src/context/ThemeContext";
 import RoleGate from "@/components/RoleGate";
 
 function toKey(date: Date) {
@@ -127,8 +130,15 @@ function CalendarView() {
   const loading = Boolean(user) && fresh === null;
 
   const [addOpen, setAddOpen] = useState(false);
+  // Set while editing an existing (staff-added) event instead of creating a
+  // new one — same modal, same form, different verb on save.
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [dayModalOpen, setDayModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  // A ref rather than the `saving` state: a very fast double-click can fire
+  // both handlers before React re-renders the disabled button, but a ref
+  // updates immediately, so the second call is still caught.
+  const submittingRef = useRef(false);
   const [addError, setAddError] = useState("");
   const [form, setForm] = useState({
     title: "",
@@ -193,13 +203,16 @@ function CalendarView() {
     goto(today);
   };
 
-  // Which days in the visible grid have something on them, for the dot under
-  // each date — the whole reason the month is fetched in one request instead
-  // of one per day.
-  const eventDayKeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const event of monthEvents) keys.add(toKey(new Date(event.start)));
-    return keys;
+  // How many events land on each day in the visible grid, for that day's row
+  // of dots — the whole reason the month is fetched in one request instead of
+  // one per day.
+  const eventDayCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const event of monthEvents) {
+      const key = toKey(new Date(event.start));
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return counts;
   }, [monthEvents]);
 
   const events = useMemo(
@@ -208,6 +221,52 @@ function CalendarView() {
   );
 
   const isToday = toKey(new Date()) === toKey(day);
+
+  const blankForm = {
+    title: "",
+    start: "10:00",
+    end: "11:00",
+    clientName: "",
+    clientPhone: "",
+    clientEmail: "",
+    clientCompany: "",
+  };
+
+  const closeAddModal = () => {
+    setAddOpen(false);
+    setEditingEventId(null);
+    setAddError("");
+    setForm(blankForm);
+  };
+
+  const openAdd = () => {
+    setEditingEventId(null);
+    setForm(blankForm);
+    setAddError("");
+    setDayModalOpen(false);
+    setAddOpen(true);
+  };
+
+  const toHHMM = (ms: number) => {
+    const d = new Date(ms);
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+
+  const openEdit = (event: CalendarEvent) => {
+    setEditingEventId(event.id);
+    setForm({
+      title: event.title,
+      start: toHHMM(event.start),
+      end: toHHMM(event.end),
+      clientName: event.clientName ?? "",
+      clientPhone: event.clientPhone ?? "",
+      clientEmail: event.clientEmail ?? "",
+      clientCompany: event.clientCompany ?? "",
+    });
+    setAddError("");
+    setDayModalOpen(false);
+    setAddOpen(true);
+  };
 
   async function handleAdd(e: FormEvent) {
     e.preventDefault();
@@ -236,34 +295,38 @@ function CalendarView() {
       return;
     }
 
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSaving(true);
 
+    const payload = {
+      title: form.title.trim(),
+      start,
+      end,
+      clientName: form.clientName.trim(),
+      clientPhone: form.clientPhone.trim(),
+      clientEmail: form.clientEmail.trim(),
+      clientCompany: form.clientCompany.trim(),
+    };
+
     try {
-      await createMyEvent({
-        title: form.title.trim(),
-        start,
-        end,
-        clientName: form.clientName.trim(),
-        clientPhone: form.clientPhone.trim(),
-        clientEmail: form.clientEmail.trim(),
-        clientCompany: form.clientCompany.trim(),
-      });
-      setAddOpen(false);
-      setForm({
-        title: "",
-        start: "10:00",
-        end: "11:00",
-        clientName: "",
-        clientPhone: "",
-        clientEmail: "",
-        clientCompany: "",
-      });
+      if (editingEventId) {
+        await updateMyEvent(editingEventId, payload);
+      } else {
+        await createMyEvent(payload);
+      }
+      closeAddModal();
       reload();
     } catch (err: unknown) {
       setAddError(
-        err instanceof Error ? err.message : "Could not add that event."
+        err instanceof Error
+          ? err.message
+          : editingEventId
+            ? "Could not update that event."
+            : "Could not add that event."
       );
     } finally {
+      submittingRef.current = false;
       setSaving(false);
     }
   }
@@ -281,7 +344,7 @@ function CalendarView() {
 
         <button
           type="button"
-          onClick={() => setAddOpen(true)}
+          onClick={openAdd}
           className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-navy-500 px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         >
           <IconPlus className="size-4" />
@@ -340,7 +403,7 @@ function CalendarView() {
             const inMonth = cellDate.getMonth() === monthCursor.getMonth();
             const isSelected = key === toKey(day);
             const isCellToday = key === toKey(new Date());
-            const hasEvents = eventDayKeys.has(key);
+            const eventCount = eventDayCounts.get(key) ?? 0;
 
             return (
               <button
@@ -368,13 +431,19 @@ function CalendarView() {
                 >
                   {cellDate.getDate()}
                 </span>
-                {hasEvents ? (
-                  <span
-                    aria-hidden
-                    className={`size-1.5 rounded-full ${
-                      isSelected ? "bg-white dark:bg-surface-dark-card" : "bg-gold-500"
-                    }`}
-                  />
+                {eventCount > 0 ? (
+                  <span aria-hidden className="flex max-w-10 flex-wrap items-center justify-center gap-0.5">
+                    {/* One dot per meeting that day — capped so a very busy
+                        day doesn't blow out the tiny cell's layout. */}
+                    {Array.from({ length: Math.min(eventCount, 4) }, (_, i) => (
+                      <span
+                        key={i}
+                        className={`size-1.5 rounded-full ${
+                          isSelected ? "bg-white dark:bg-surface-dark-card" : "bg-gold-500"
+                        }`}
+                      />
+                    ))}
+                  </span>
                 ) : null}
               </button>
             );
@@ -453,10 +522,7 @@ function CalendarView() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => {
-                      setDayModalOpen(false);
-                      setAddOpen(true);
-                    }}
+                    onClick={openAdd}
                     className="min-h-10 cursor-pointer rounded-lg border border-navy-500/20 dark:border-white/15 px-4 text-sm font-medium text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
                   >
                     Add an event
@@ -518,6 +584,16 @@ function CalendarView() {
                                 </p>
                               ) : null}
                             </div>
+
+                            {!event.isVisit ? (
+                              <button
+                                type="button"
+                                onClick={() => openEdit(event)}
+                                className="shrink-0 cursor-pointer self-center rounded-lg px-2 py-1 text-xs font-medium text-navy-500 dark:text-white/70 transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
+                              >
+                                Edit
+                              </button>
+                            ) : null}
                           </li>
                         );
                       })}
@@ -540,10 +616,7 @@ function CalendarView() {
                     )}
                     <button
                       type="button"
-                      onClick={() => {
-                        setDayModalOpen(false);
-                        setAddOpen(true);
-                      }}
+                      onClick={openAdd}
                       className="min-h-9 shrink-0 cursor-pointer rounded-lg border border-navy-500/20 dark:border-white/15 px-3 text-xs font-medium text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
                     >
                       + Add event
@@ -568,7 +641,7 @@ function CalendarView() {
             <button
               type="button"
               aria-label="Close"
-              onClick={() => setAddOpen(false)}
+              onClick={closeAddModal}
               className="absolute inset-0 cursor-pointer bg-navy-500/40 backdrop-blur-sm"
             />
             <motion.div
@@ -583,14 +656,17 @@ function CalendarView() {
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-navy-500 dark:text-white">Add event</h2>
+                  <h2 className="text-xl font-bold text-navy-500 dark:text-white">
+                    {editingEventId ? "Edit event" : "Add event"}
+                  </h2>
                   <p className="mt-1 text-sm text-stone-500 dark:text-white/50">
-                    Added to your calendar on {dayFmt.format(day)}.
+                    {editingEventId ? "On your calendar for" : "Added to your calendar on"}{" "}
+                    {dayFmt.format(day)}.
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setAddOpen(false)}
+                  onClick={closeAddModal}
                   aria-label="Close"
                   className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-navy-500/15 dark:border-white/10 text-navy-500 dark:text-white transition-colors hover:bg-navy-500/10 dark:bg-white/10"
                 >
@@ -613,7 +689,7 @@ function CalendarView() {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, title: e.target.value }))
                     }
-                    placeholder="e.g. Client call with Kotak"
+                    placeholder="e.g. Client call"
                     className="min-h-12 w-full rounded-xl border border-navy-500/20 dark:border-white/15 px-4 text-navy-500 dark:text-white outline-none focus:border-navy-500"
                   />
                 </div>
@@ -720,7 +796,13 @@ function CalendarView() {
                   disabled={saving}
                   className="min-h-12 w-full cursor-pointer rounded-2xl bg-navy-500 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {saving ? "Adding…" : "Add to my calendar"}
+                  {editingEventId
+                    ? saving
+                      ? "Saving…"
+                      : "Save changes"
+                    : saving
+                      ? "Adding…"
+                      : "Add to my calendar"}
                 </button>
               </form>
             </motion.div>
@@ -748,7 +830,7 @@ function buildTime(hour12: number, minute: number, period: "AM" | "PM") {
 }
 
 const TIME_SELECT_CLASS =
-  "min-h-12 flex-1 rounded-xl border border-navy-500/20 dark:border-white/15 bg-transparent px-2 text-center text-navy-500 dark:text-white outline-none focus:border-navy-500";
+  "min-h-12 flex-1 rounded-xl border border-navy-500/20 dark:border-white/15 bg-white dark:bg-surface-dark-card px-2 text-center text-navy-500 dark:text-white outline-none focus:border-navy-500";
 
 function TimeField({
   id,
@@ -762,6 +844,11 @@ function TimeField({
   onChange: (value: string) => void;
 }) {
   const { hour12, minute, period } = parseTime(value);
+  // A native <select>'s dropdown popup follows this, not the page's own dark
+  // class — without it, the browser can render the popup with light-mode
+  // chrome even while our own CSS paints the closed box dark, making the
+  // white text disappear against a light list once it's opened.
+  const { theme } = useTheme();
 
   return (
     <div>
@@ -777,6 +864,7 @@ function TimeField({
           aria-label={`${label} — hour`}
           value={hour12}
           onChange={(e) => onChange(buildTime(Number(e.target.value), minute, period))}
+          style={{ colorScheme: theme }}
           className={TIME_SELECT_CLASS}
         >
           {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
@@ -789,18 +877,25 @@ function TimeField({
           aria-label={`${label} — minute`}
           value={minute}
           onChange={(e) => onChange(buildTime(hour12, Number(e.target.value), period))}
+          style={{ colorScheme: theme }}
           className={TIME_SELECT_CLASS}
         >
-          {Array.from({ length: 60 }, (_, i) => i).map((m) => (
-            <option key={m} value={m}>
-              {String(m).padStart(2, "0")}
-            </option>
-          ))}
+          {/* 5-minute steps — a 60-row native dropdown is unusably tall.
+              The current value is included even off-step, so an existing
+              event's exact minute is never silently rounded away. */}
+          {Array.from(new Set([...Array.from({ length: 12 }, (_, i) => i * 5), minute]))
+            .sort((a, b) => a - b)
+            .map((m) => (
+              <option key={m} value={m}>
+                {String(m).padStart(2, "0")}
+              </option>
+            ))}
         </select>
         <select
           aria-label={`${label} — AM or PM`}
           value={period}
           onChange={(e) => onChange(buildTime(hour12, minute, e.target.value as "AM" | "PM"))}
+          style={{ colorScheme: theme }}
           className={TIME_SELECT_CLASS}
         >
           <option value="AM">AM</option>

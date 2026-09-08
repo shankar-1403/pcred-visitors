@@ -93,9 +93,6 @@ function ShellChrome({ children }: { children: ReactNode }) {
               priority
               className="h-9 w-auto object-contain"
             />
-            <span className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 sm:block dark:text-white/40">
-              Visitors
-            </span>
           </Link>
 
           <nav aria-label="Main" className="hidden items-center gap-1 sm:flex">

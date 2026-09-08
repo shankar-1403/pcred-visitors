@@ -14,7 +14,23 @@ import { useStaff, type Staff } from "@/src/hooks/useStaff";
 import { HAS_FIREBASE_CONFIG } from "@/src/lib/firebase";
 import SetupNotice from "@/components/SetupNotice";
 import { useVisitorRequest } from "@/src/hooks/useVisitorRequest";
-import { createVisitorRequest } from "@/src/lib/data";
+import { createVisitorRequest, fetchBusyBlocks } from "@/src/lib/data";
+import { buildDaySlots, type BusyInterval, type Slot } from "@/src/lib/availability";
+
+/** The next 7 days a staff member's own link lets someone book into. */
+const BOOKING_DAYS = 7;
+
+function startOfDay(ms: number) {
+  const date = new Date(ms);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+function dayLabel(date: Date, index: number) {
+  if (index === 0) return "Today";
+  if (index === 1) return "Tomorrow";
+  return date.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+}
 
 const PURPOSES = [
   "Meeting",
@@ -111,6 +127,13 @@ export default function CheckInFlow({
   const [submitting, setSubmitting] = useState(false);
   const [requestId, setRequestId] = useState<string | null>(null);
 
+  // Booking: only meaningful on a staff member's own link, where the visitor
+  // is browsing ahead of time rather than standing at the door right now.
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const [requestedFor, setRequestedFor] = useState<number | null>(null);
+  const [timeError, setTimeError] = useState("");
+  const [busy, setBusy] = useState<BusyInterval[] | null>(null);
+
   const { request } = useVisitorRequest(requestId);
   const status = request?.status ?? "pending";
   const resolved = Boolean(requestId) && status !== "pending";
@@ -126,6 +149,9 @@ export default function CheckInFlow({
     setStaffError("");
     setSubmitError("");
     setRequestId(null);
+    setSelectedDayIndex(0);
+    setRequestedFor(null);
+    setTimeError("");
   }, [presetStaffId]);
 
   // Idle guard: any half-finished check-in is wiped so the next visitor never
@@ -159,6 +185,67 @@ export default function CheckInFlow({
     const timer = setTimeout(reset, RESULT_RESET_MS);
     return () => clearTimeout(timer);
   }, [step, resolved, reset]);
+
+  // Busy blocks carry only timing, never a title — this is the public
+  // mirror the kiosk's own availability check already relies on, so a
+  // booking link can grey out taken slots without exposing what they're for.
+  useEffect(() => {
+    if (!presetStaffId) return;
+
+    let cancelled = false;
+
+    fetchBusyBlocks(presetStaffId)
+      .then((blocks) => {
+        if (!cancelled) setBusy(blocks);
+      })
+      .catch(() => {
+        if (!cancelled) setBusy([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [presetStaffId]);
+
+  // Read once via a lazy initializer, then ticked — a plain `Date.now()`
+  // inside a memo isn't allowed to run during render.
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const bookingDays = useMemo(
+    () =>
+      Array.from({ length: BOOKING_DAYS }, (_, index) => {
+        const date = new Date(startOfDay(now) + index * 24 * 60 * 60 * 1000);
+        return { date, label: dayLabel(date, index) };
+      }),
+    [now]
+  );
+
+  const daySlots = useMemo((): Slot[] => {
+    if (!presetStaffId || busy === null) return [];
+
+    return buildDaySlots({
+      dayStart: startOfDay(bookingDays[selectedDayIndex]?.date.getTime() ?? now),
+      now,
+      busy,
+      slotMinutes: 30,
+    });
+  }, [presetStaffId, busy, bookingDays, selectedDayIndex, now]);
+
+  const selectDay = (index: number) => {
+    setSelectedDayIndex(index);
+    setRequestedFor(null);
+    setTimeError("");
+  };
+
+  const selectSlot = (slot: Slot) => {
+    setRequestedFor(slot.start);
+    setTimeError("");
+  };
 
   const staffOptions = useMemo(
     () =>
@@ -238,7 +325,12 @@ export default function CheckInFlow({
     const hasStaff = presetStaffId ? Boolean(presetStaff) : Boolean(selectedStaff);
     setStaffError(hasStaff ? "" : "Please choose who you're here to meet.");
 
-    if (!detailsOk || !hasPurpose || !hasStaff || !target) return;
+    // Only the booking-link flow has a schedule to pick from — the walk-in
+    // kiosk has no time step at all.
+    const hasTime = !presetStaffId || requestedFor !== null;
+    setTimeError(hasTime ? "" : "Please pick a day and time.");
+
+    if (!detailsOk || !hasPurpose || !hasStaff || !hasTime || !target) return;
 
     setSubmitError("");
     setSubmitting(true);
@@ -258,6 +350,7 @@ export default function CheckInFlow({
         address: form.address.trim(),
         purpose: form.purpose || "Other",
         purposeNote,
+        ...(presetStaffId ? { requestedFor } : {}),
       });
 
       setSelectedStaff(target);
@@ -513,6 +606,75 @@ export default function CheckInFlow({
                   </div>
                 </section>
 
+                {/* ---- when (booking-link only) ---- */}
+                {presetStaffId ? (
+                  <section className="mt-6 border-t border-white/10 pt-6">
+                    <h2 className="font-serif text-2xl tracking-tight text-white sm:text-3xl">
+                      When would you like to meet?
+                    </h2>
+
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {bookingDays.map((day, index) => (
+                        <button
+                          key={day.date.toISOString()}
+                          type="button"
+                          onClick={() => selectDay(index)}
+                          aria-pressed={selectedDayIndex === index}
+                          className={`min-h-11 cursor-pointer rounded-full border px-5 text-sm font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-300 ${
+                            selectedDayIndex === index
+                              ? "border-gold-300 bg-gold-300 text-brand-deep"
+                              : "border-white/15 bg-white/[0.05] text-white/75 hover:border-white/35 hover:bg-white/[0.09] hover:text-white"
+                          }`}
+                        >
+                          {day.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-5">
+                      {busy === null ? (
+                        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                          {Array.from({ length: 8 }, (_, i) => (
+                            <div
+                              key={i}
+                              className="h-13 animate-pulse rounded-xl border border-white/10 bg-white/[0.04]"
+                            />
+                          ))}
+                        </div>
+                      ) : daySlots.length === 0 ? (
+                        <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-sm text-white/60">
+                          No times are left that day. Please choose another day.
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                          {daySlots.map((slot) => (
+                            <button
+                              key={slot.start}
+                              type="button"
+                              disabled={!slot.available}
+                              onClick={() => selectSlot(slot)}
+                              aria-pressed={requestedFor === slot.start}
+                              className={`min-h-13 cursor-pointer rounded-xl border text-sm font-semibold tabular-nums transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-300 disabled:cursor-not-allowed disabled:border-white/5 disabled:bg-transparent disabled:text-white/25 disabled:line-through ${
+                                requestedFor === slot.start
+                                  ? "border-gold-300 bg-gold-300 text-brand-deep"
+                                  : "border-white/15 bg-white/[0.05] text-white/80 hover:border-white/35 hover:bg-white/[0.09] hover:text-white"
+                              }`}
+                            >
+                              {formatTime(slot.start)}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {timeError ? (
+                      <p role="alert" className="mt-3 text-sm text-red-300">
+                        {timeError}
+                      </p>
+                    ) : null}
+                  </section>
+                ) : null}
+
                 {/* ---- submit ---- */}
                 <section className="mt-6 border-t border-white/10 pt-6 pb-2">
                   {submitError ? (
@@ -713,6 +875,7 @@ function KioskField({
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : undefined}
           onChange={(e) => onChange(e.target.value)}
+          style={{ colorScheme: "dark" }}
           className={`${fieldClassName} cursor-pointer appearance-none bg-[url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%23D9B872%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.6%22%20d%3D%22m5%207.5%205%205%205-5%22%2F%3E%3C%2Fsvg%3E')] bg-[length:20px] bg-[right_1.25rem_center] bg-no-repeat pr-14`}
         >
           <option value="" disabled className="text-stone-500">

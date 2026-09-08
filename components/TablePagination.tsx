@@ -1,5 +1,7 @@
 "use client";
 
+import { useTheme } from "@/src/context/ThemeContext";
+
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 interface TablePaginationProps {
@@ -20,6 +22,7 @@ export default function TablePagination({
   onPageChange,
   onPageSizeChange,
 }: TablePaginationProps) {
+  const { theme } = useTheme();
   const start = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, totalItems);
 
@@ -38,6 +41,7 @@ export default function TablePagination({
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
+              style={{ colorScheme: theme }}
               className="min-h-11 cursor-pointer rounded-lg border border-navy-500/20 bg-white px-2 text-sm text-navy-500 dark:border-white/15 dark:bg-surface-dark-raised dark:text-white"
             >
               {PAGE_SIZE_OPTIONS.map((option) => (

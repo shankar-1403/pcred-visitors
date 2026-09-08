@@ -138,7 +138,7 @@ export default function InstallApp() {
 
         <div className="min-w-0 flex-1 pr-8 sm:pr-0">
           <p className="text-sm font-semibold text-navy-500">
-            Install PCRED Visitors
+            Install PCRED
           </p>
 
           {isIOS ? (

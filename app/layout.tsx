@@ -17,8 +17,8 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: "PCRED Visitors",
-    template: "%s | PCRED Visitors",
+    default: "PCRED",
+    template: "%s | PCRED",
   },
   description:
     "Front-desk visitor check-in for the PCRED office, with instant approvals from the person being visited.",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   // iOS ignores the web app manifest for these, so they have to be said twice.
   appleWebApp: {
     capable: true,
-    title: "Visitors",
+    title: "PCRED",
     statusBarStyle: "black-translucent",
   },
 };

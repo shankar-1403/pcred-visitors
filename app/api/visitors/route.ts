@@ -194,13 +194,14 @@ export async function POST(request: Request) {
       : "Other";
 
     // A chosen slot must be a real future time inside the booking window —
-    // anything else is treated as "meet now" rather than trusted.
+    // anything else is dropped rather than trusted. The window covers the
+    // 7-day picker on a staff member's own link, with a day of slack.
     const requestedRaw = Number(body.requestedFor);
     const now = Date.now();
     const requestedFor =
       Number.isFinite(requestedRaw) &&
       requestedRaw > now &&
-      requestedRaw < now + 24 * 60 * 60 * 1000
+      requestedRaw < now + 8 * 24 * 60 * 60 * 1000
         ? Math.floor(requestedRaw)
         : null;
 

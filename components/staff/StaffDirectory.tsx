@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { IconCheck, IconLink, IconSearch, IconX } from "@tabler/icons-react";
 import { createStaffAccount, patchStaffMember, saveStaffMember } from "@/src/lib/data";
 import { useAuth } from "@/src/context/AuthContext";
+import { useTheme } from "@/src/context/ThemeContext";
 import { useStaff, type Staff } from "@/src/hooks/useStaff";
 import { usePagination } from "@/src/hooks/usePagination";
 import TablePagination from "@/components/TablePagination";
@@ -25,6 +26,7 @@ const initialFormData = {
 
 export default function StaffDirectory() {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const { staff, loading: staffLoading } = useStaff();
 
   const [formData, setFormData] = useState(initialFormData);
@@ -435,7 +437,8 @@ export default function StaffDirectory() {
                           value={formData.accessRole}
                           onChange={handleChange}
                           disabled={editingStaffId !== null && !formData.changeAccess}
-                          className={`${inputClass} cursor-pointer disabled:cursor-not-allowed disabled:opacity-50`}
+                          style={{ colorScheme: theme }}
+                          className={`${inputClass} cursor-pointer bg-white dark:bg-surface-dark-card disabled:cursor-not-allowed disabled:opacity-50`}
                         >
                           <option value="staff">
                             Staff (their own visitors only)

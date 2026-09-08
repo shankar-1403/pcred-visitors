@@ -34,9 +34,18 @@ export async function sendMail(options: {
   cc?: string;
   subject: string;
   text: string;
+  html?: string;
+  attachments?: { filename: string; path: string; cid: string }[];
+  /** Defaults to a no-reply address — these are automated notifications, not
+      an inbox anyone reads, so a reply should bounce rather than land
+      somewhere unmonitored. Pass a real address to override this. */
+  replyTo?: string;
 }) {
+  const { replyTo = "no-reply@pcred.in", ...rest } = options;
+
   await getTransporter().sendMail({
-    from: `"PCRED Visitors" <${SMTP_USER}>`,
-    ...options,
+    from: `"PCRED" <${SMTP_USER}>`,
+    replyTo,
+    ...rest,
   });
 }

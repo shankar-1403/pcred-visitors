@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "PCRED Visitors",
-    short_name: "Visitors",
+    name: "PCRED",
+    short_name: "PCRED",
     description:
       "Front-desk visitor check-in for the PCRED office. Approve, decline or postpone a visitor from your phone.",
     // Staff are who install this, so it opens on their side of the app. The
