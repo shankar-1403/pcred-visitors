@@ -322,7 +322,11 @@ export async function POST(request: Request) {
     const id = await createRequest(data);
 
     if (staff.fcmTokens) {
-      void sendPushAlert(
+      // Awaited, not left running in the background: this route is served by
+      // Cloud Run, which stops giving the container CPU the moment a response
+      // goes out. A floating promise is frozen there and never reaches FCM.
+      // It swallows its own failures, so waiting cannot fail the check-in.
+      await sendPushAlert(
         staffId,
         staff.fcmTokens,
         visitorName,
