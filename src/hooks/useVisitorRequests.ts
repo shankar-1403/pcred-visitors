@@ -39,9 +39,9 @@ export interface VisitorRequest {
 /**
  * Realtime visitor request log, newest first.
  *
- * Scoped by role: an admin gets everything, everyone else gets only the
- * visitors who came to see them. That scoping is enforced by the database
- * rules, not just here.
+ * Scoped by role: admin and reception get everything, everyone else gets
+ * only the visitors who came to see them. That scoping is enforced by the
+ * database rules, not just here.
  */
 export function useVisitorRequests() {
   const { user } = useAuth();
@@ -54,7 +54,7 @@ export function useVisitorRequests() {
 
   useEffect(() => {
     // Wait for the role: subscribing as "staff" first and re-subscribing as
-    // "admin" a moment later makes the inbox visibly flicker.
+    // "admin" or "reception" a moment later makes the inbox visibly flicker.
     if (roleLoading || !user) return;
 
     const unsubscribe = subscribeRequests(

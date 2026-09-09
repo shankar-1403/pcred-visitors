@@ -22,7 +22,7 @@
     },
 
     "visitor_requests": {
-      ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin' || (query.orderByChild === 'staffEmail' && query.equalTo === auth.token.email)",
+      ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'reception' || (query.orderByChild === 'staffEmail' && query.equalTo === auth.token.email)",
       ".indexOn": ["staffId", "staffEmail", "status", "createdAt"],
 
       "$requestId": {

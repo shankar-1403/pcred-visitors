@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { IconBell, IconBellRinging, IconX } from "@tabler/icons-react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useStaff } from "@/src/hooks/useStaff";
+import { useRole } from "@/src/hooks/useRole";
 import { registerPushToken } from "@/src/lib/push";
 import {
   useVisitorRequests,
@@ -71,15 +72,16 @@ function playChime() {
 }
 
 /**
- * Live alert for staff: a new visitor at the door raises a modal, a repeating
- * chime and — once permitted — a native OS notification that reaches them even
- * when this tab is in the background.
+ * Live alert for a visitor at the door.
  *
- * Mounted for every internal CMS page, not just the visitors inbox.
+ * Staff get a personal toast (and, if they opted in, an OS notification and
+ * push) so they can respond. Reception sees the same arrival as office-wide
+ * information — no "for you", no respond action, no host push registration.
  */
 export default function VisitorAlert() {
   const router = useRouter();
   const { user } = useAuth();
+  const { isReception, loading: roleLoading } = useRole();
   const { requests, loading } = useVisitorRequests();
   const { staff } = useStaff();
 
@@ -116,19 +118,23 @@ export default function VisitorAlert() {
   // is the only place a token gets saved for that device.
   const registeredStaffId = useRef<string | null>(null);
   useEffect(() => {
+    // Reception is not a host. Registering their device against a staff
+    // record would deliver "here to meet you" pushes that belong to someone
+    // else — or to a leftover personal login on the same email.
+    if (roleLoading || isReception) return;
     if (permission !== "granted" || !myStaffRecord) return;
     if (registeredStaffId.current === myStaffRecord.id) return;
 
     registeredStaffId.current = myStaffRecord.id;
     void registerPushToken(myStaffRecord.id);
-  }, [permission, myStaffRecord]);
+  }, [permission, myStaffRecord, roleLoading, isReception]);
 
   // Ids already seen. Seeded from the first snapshot so opening a page never
   // replays a backlog of alerts for visitors who arrived hours ago.
   const seenIds = useRef<Set<string> | null>(null);
 
   useEffect(() => {
-    if (loading || !user) return;
+    if (loading || roleLoading || !user) return;
 
     const pending = requests.filter(
       (request) => (request.status ?? "pending") === "pending"
@@ -155,7 +161,10 @@ export default function VisitorAlert() {
     // One chime per arrival, not a repeating loop — a notification, not an alarm.
     playChime();
 
+    // Staff get a native OS popup as well. Reception only needs the in-app
+    // toast — those OS notifications are phrased as a host's personal alert.
     if (
+      !isReception &&
       typeof window !== "undefined" &&
       "Notification" in window &&
       Notification.permission === "granted"
@@ -174,7 +183,7 @@ export default function VisitorAlert() {
 
           notification.onclick = () => {
             window.focus();
-            router.push("/staff");
+            router.push(isReception ? "/reception" : "/staff");
             notification.close();
           };
         } catch {
@@ -182,7 +191,7 @@ export default function VisitorAlert() {
         }
       });
     }
-  }, [requests, loading, user, router]);
+  }, [requests, loading, roleLoading, user, router, isReception]);
 
   const dismiss = useCallback((id: string) => {
     setQueue((prev) => prev.filter((request) => request.id !== id));
@@ -205,11 +214,11 @@ export default function VisitorAlert() {
 
   const current = queue[0];
 
-  if (!user) return null;
+  if (!user || roleLoading) return null;
 
   return (
     <>
-      {permission === "default" ? (
+      {permission === "default" && !isReception ? (
         <button
           type="button"
           onClick={requestPermission}
@@ -251,8 +260,10 @@ export default function VisitorAlert() {
             </div>
 
             <div className="p-5">
-              {(current.staffEmail ?? "").toLowerCase() ===
-              (user.email ?? "").toLowerCase() && user.email ? (
+              {!isReception &&
+              (current.staffEmail ?? "").toLowerCase() ===
+                (user.email ?? "").toLowerCase() &&
+              user.email ? (
                 <span className="mb-2 inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
                   For you
                 </span>
@@ -273,20 +284,24 @@ export default function VisitorAlert() {
                 <button
                   type="button"
                   onClick={() => dismiss(current.id)}
-                  className="min-h-10 flex-1 cursor-pointer rounded-xl border border-navy-500/20 text-sm font-semibold text-navy-500 transition-colors hover:bg-navy-500/6"
+                  className={`min-h-10 cursor-pointer rounded-xl border border-navy-500/20 text-sm font-semibold text-navy-500 transition-colors hover:bg-navy-500/6 ${
+                    isReception ? "w-full" : "flex-1"
+                  }`}
                 >
-                  Later
+                  {isReception ? "Dismiss" : "Later"}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    dismiss(current.id);
-                    router.push("/staff");
-                  }}
-                  className="min-h-10 flex-1 cursor-pointer rounded-xl bg-navy-500 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                >
-                  Respond now
-                </button>
+                {!isReception ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dismiss(current.id);
+                      router.push("/staff");
+                    }}
+                    className="min-h-10 flex-1 cursor-pointer rounded-xl bg-navy-500 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                  >
+                    Respond now
+                  </button>
+                ) : null}
               </div>
 
               {queue.length > 1 ? (

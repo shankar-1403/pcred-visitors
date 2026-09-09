@@ -138,10 +138,10 @@ export async function patchStaffMember(
 /**
  * Visitor requests the signed-in person is allowed to see.
  *
- * An admin reads the whole node. Everyone else issues a query constrained to
- * their own address — which is not a convenience, it is the shape the database
- * rules require. An unconstrained read from a non-admin is refused outright,
- * so a staff member cannot see who visited anyone else.
+ * An admin or reception reads the whole node. Everyone else issues a query
+ * constrained to their own address — which is not a convenience, it is the
+ * shape the database rules require. An unconstrained read from ordinary staff
+ * is refused outright, so they cannot see who visited anyone else.
  */
 export function subscribeRequests(
   { role, email }: { role: Role; email?: string | null },
@@ -155,7 +155,7 @@ export function subscribeRequests(
 
   const base = ref(db, "visitor_requests");
   const scoped =
-    role === "admin"
+    role === "admin" || role === "reception"
       ? base
       : dbQuery(
           base,
