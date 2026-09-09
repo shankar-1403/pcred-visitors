@@ -316,7 +316,7 @@ export default function StaffDirectory() {
                       value={formData.name}
                       onChange={handleChange}
                       type="text"
-                      placeholder="e.g. Parvez Shaikh"
+                      placeholder="e.g. Vijay Sharma"
                       className={inputClass}
                     />
                   </div>

@@ -422,7 +422,7 @@ export default function CheckInFlow({
         <header className="flex items-center justify-between px-5 py-5 sm:px-8 sm:py-6 lg:px-12">
           <div className="flex items-center gap-4">
             <Image
-              src="/logo.webp"
+              src="/pcred-logo.png"
               alt="PCRED"
               width={192}
               height={57}
@@ -810,10 +810,10 @@ function StatusResult({
     postponed: {
       icon: <IconCalendarTime className="size-10 text-gold-300" />,
       ring: "bg-gold-300/15",
-      title: `${first} has suggested a later time`,
+      title: `${first} will be available shortly`,
       body: postponedTo
-        ? `Please come back at ${formatTime(postponedTo)}.`
-        : "Please check with the front desk for a new time.",
+        ? `Please wait till ${formatTime(postponedTo)}. Thank you for your patience.`
+        : "Please make yourself comfortable while we arrange your meeting.",
     },
   };
 

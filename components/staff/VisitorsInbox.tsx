@@ -258,7 +258,7 @@ export default function VisitorsInbox() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 h-screen"
           >
             <button
               type="button"
@@ -354,7 +354,7 @@ export default function VisitorsInbox() {
                     ))}
                   </div>
 
-                  <div className="mt-3">
+                  {/* <div className="mt-3">
                     <label
                       htmlFor="postponeCustom"
                       className="mb-1.5 block text-xs font-medium text-stone-600 dark:text-white/60"
@@ -385,7 +385,7 @@ export default function VisitorsInbox() {
                       }}
                       className="min-h-11 w-full max-w-xs rounded-xl border border-navy-500/20 dark:border-white/15 px-3 text-sm text-navy-500 dark:text-white outline-none focus:border-navy-500 sm:w-auto"
                     />
-                  </div>
+                  </div> */}
 
                   {postponeCustomError ? (
                     <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-300">
@@ -716,21 +716,21 @@ function PendingCard({
         <button
           type="button"
           onClick={() => onRespond(request, "approved")}
-          className="min-h-12 cursor-pointer rounded-xl bg-green-600 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          className="min-h-12 cursor-pointer rounded-xl bg-green-500/20 border border-green-500 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         >
           Approve
         </button>
         <button
           type="button"
           onClick={() => onRespond(request, "postponed")}
-          className="min-h-12 cursor-pointer rounded-xl border border-navy-500/25 dark:border-white/15 text-sm font-semibold text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
+          className="min-h-12 cursor-pointer rounded-xl bg-blue-500/10 border border-blue-500 dark:border-white/15 text-sm font-semibold text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
         >
           Postpone
         </button>
         <button
           type="button"
           onClick={() => onRespond(request, "declined")}
-          className="min-h-12 cursor-pointer rounded-xl border border-maroon-500/30 text-sm font-semibold text-maroon-500 transition-colors hover:bg-maroon-500/8"
+          className="min-h-12 cursor-pointer rounded-xl bg-maroon-500/20 border border-maroon-500 text-sm font-semibold text-white transition-colors hover:bg-maroon-500/10"
         >
           Decline
         </button>
