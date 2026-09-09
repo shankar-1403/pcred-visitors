@@ -263,6 +263,11 @@ export interface CalendarResult {
   events: CalendarEvent[];
 }
 
+/** A calendar event plus whose diary it lives on — reception's office-wide list. */
+export interface OfficeMeeting extends CalendarEvent {
+  staffId: string;
+}
+
 async function authHeader(): Promise<Record<string, string>> {
   const { auth } = await import("./firebase");
   const idToken = await auth?.currentUser?.getIdToken();
@@ -340,6 +345,47 @@ export async function updateMyEvent(
   if (!response.ok) {
     throw new Error(data.error ?? "Could not update that event.");
   }
+}
+
+/**
+ * Every meeting on every staff member's calendar. Reception and admin are
+ * the only roles the database rules will answer this for — a staff member
+ * asking for the whole tree is refused outright.
+ */
+export function subscribeAllCalendarEvents(
+  onData: (meetings: OfficeMeeting[]) => void,
+  onError: (error: Error) => void
+): Unsubscribe {
+  if (!HAS_FIREBASE_CONFIG) {
+    onError(NOT_CONFIGURED);
+    return noop;
+  }
+
+  return onValue(
+    ref(db, "calendar_events"),
+    (snapshot) => onData(flattenOfficeMeetings(snapshot.val())),
+    (error) => {
+      console.error(
+        "[visitor-app] calendar_events read denied — reception and admin can read the whole tree; staff cannot.",
+        error
+      );
+      onError(error);
+    }
+  );
+}
+
+function flattenOfficeMeetings(value: unknown): OfficeMeeting[] {
+  const tree = (value ?? {}) as Record<string, Record<string, Omit<CalendarEvent, "id">>>;
+
+  const meetings: OfficeMeeting[] = [];
+
+  for (const [staffId, byId] of Object.entries(tree)) {
+    for (const [id, event] of Object.entries(byId ?? {})) {
+      meetings.push({ id, staffId, ...event });
+    }
+  }
+
+  return meetings.sort((a, b) => (a.start ?? 0) - (b.start ?? 0));
 }
 
 /* -------------------------------------------------------- staff accounts */

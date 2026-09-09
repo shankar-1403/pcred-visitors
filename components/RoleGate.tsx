@@ -4,12 +4,6 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRole } from "@/src/hooks/useRole";
 
-/**
- * Blocks a page for the wrong role.
- *
- * A courtesy on top of the database rules, not a substitute for them — the
- * rules refuse the reads and writes whatever this renders.
- */
 export default function RoleGate({
   allow,
   title,
@@ -18,7 +12,7 @@ export default function RoleGate({
   backLabel,
   children,
 }: {
-  allow: "admin" | "staff";
+  allow: "admin" | "staff" | "reception";
   title: string;
   body: string;
   backHref: string;

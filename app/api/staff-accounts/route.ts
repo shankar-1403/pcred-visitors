@@ -63,7 +63,9 @@ export async function POST(request: Request) {
     // whose access level the admin never touched must not silently demote
     // them if they happen to already be an admin.
     const role =
-      body.role === "admin" || body.role === "staff" ? body.role : undefined;
+      body.role === "admin" || body.role === "staff" || body.role === "reception"
+        ? body.role
+        : undefined;
 
     if (!EMAIL_RE.test(email)) {
       return NextResponse.json(

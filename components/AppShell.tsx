@@ -20,9 +20,10 @@ import lightLogo from '../public/pcred-logo.png'
  * Staff have two places to be. An admin has one — the directory is all of
  * `/staff` for them — so they get no nav at all rather than a lone tab.
  */
-const NAV: { label: string; href: string; roles: ("admin" | "staff")[] }[] = [
+const NAV: { label: string; href: string; roles: ("admin" | "staff" | "reception")[] }[] = [
   { label: "Visitors", href: "/staff", roles: ["staff"] },
   { label: "My calendar", href: "/staff/calendar", roles: ["staff"] },
+  { label: "Dashboard", href: "/reception", roles: ["reception"] },
 ];
 
 /**
@@ -63,13 +64,20 @@ function ShellChrome({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user, profile, logout } = useAuth();
   const { pending } = useVisitorRequests();
-  const { isAdmin } = useRole();
+  const { isAdmin, isReception, loading: roleLoading } = useRole();
   const [menuOpen, setMenuOpen] = useState(false);
   const {theme} = useTheme();
 
   const nav = NAV.filter((item) =>
-    item.roles.includes(isAdmin ? "admin" : "staff")
+    item.roles.includes(isAdmin ? "admin" : isReception ? "reception" : "staff")
   );
+
+  useEffect(() => {
+    if (roleLoading || !isReception) return;
+    if (pathname.startsWith("/staff")) {
+      router.replace("/reception");
+    }
+  }, [roleLoading, isReception, pathname, router]);
 
   const handleLogout = async () => {
     await logout();
@@ -83,7 +91,7 @@ function ShellChrome({ children }: { children: ReactNode }) {
     <>
       <header className="sticky top-0 z-30 border-b border-navy-500/10 bg-white/90 backdrop-blur-xl dark:border-white/10 dark:bg-surface-dark/90">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <Link href="/staff" className="flex shrink-0 items-center gap-3">
+          <Link href={isReception ? "/reception" : "/staff"} className="flex shrink-0 items-center gap-3">
             <Image src={theme == 'dark' ? lightLogo : logo} alt="PCRED" width={192} height={57} className="h-9 w-auto object-contain" />
           </Link>
 
@@ -104,7 +112,7 @@ function ShellChrome({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="flex items-center gap-2">
-            {!isAdmin && pending.length > 0 ? (
+            {!isAdmin && !isReception && pending.length > 0 ? (
               <Link
                 href="/staff"
                 aria-label={waitingLabel}

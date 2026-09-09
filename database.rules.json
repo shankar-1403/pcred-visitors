@@ -5,7 +5,7 @@
       "$uid": {
         ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
         "role": {
-          ".validate": "newData.isString() && newData.val().matches(/^(admin|staff)$/)"
+          ".validate": "newData.isString() && newData.val().matches(/^(admin|staff|reception)$/)"
         }
       }
     },
@@ -41,8 +41,9 @@
     },
 
     "calendar_events": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'reception')",
       "$staffId": {
-        ".read": "auth != null && (root.child('staff').child($staffId).child('email').val() === auth.token.email || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".read": "auth != null && (root.child('staff').child($staffId).child('email').val() === auth.token.email || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'reception')",
         ".write": "auth != null && (root.child('staff').child($staffId).child('email').val() === auth.token.email || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     },

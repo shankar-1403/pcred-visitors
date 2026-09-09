@@ -17,7 +17,7 @@ const initialFormData = {
   email: "",
   phone: "",
   password: "",
-  accessRole: "staff" as "admin" | "staff",
+  accessRole: "staff" as "admin" | "staff" | "reception",
   // Only meaningful while editing: unchecked, resetting a password never
   // touches whatever access level that account already has.
   changeAccess: false,
@@ -442,6 +442,9 @@ export default function StaffDirectory() {
                         >
                           <option value="staff">
                             Staff (their own visitors only)
+                          </option>
+                          <option value="reception">
+                            Reception (front desk — scheduled meetings)
                           </option>
                           <option value="admin">
                             Admin (manages the directory and logins)

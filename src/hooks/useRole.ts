@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { subscribeRole } from "@/src/lib/data";
 import { useAuth } from "@/src/context/AuthContext";
 
-export type Role = "admin" | "staff";
+export type Role = "admin" | "staff" | "reception";
 
 export interface RoleRecord {
   role: Role;
@@ -40,12 +40,21 @@ export function useRole() {
   const fresh = user && snapshot?.uid === user.uid ? snapshot : null;
 
   // Anyone signed in without a role record is treated as ordinary staff —
-  // never as an admin. Failing closed matters more than failing usefully.
-  const role: Role = fresh?.record?.role === "admin" ? "admin" : "staff";
+  // never as an admin or reception. Failing closed matters more than
+  // failing usefully.
+  const recorded = fresh?.record?.role;
+  const role: Role =
+    recorded === "admin"
+      ? "admin"
+      : recorded === "reception"
+        ? "reception"
+        : "staff";
 
   return {
     role,
     isAdmin: role === "admin",
+    isStaff: role === "staff",
+    isReception: role === "reception",
     loading: Boolean(user) && fresh === null,
   };
 }
