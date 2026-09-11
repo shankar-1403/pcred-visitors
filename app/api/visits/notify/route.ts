@@ -110,6 +110,9 @@ export async function POST(request: Request) {
           tag: `visit-${requestId}`,
           // Someone who has looked away is the whole reason this exists.
           requireInteraction: true,
+          // Not silent, and carrying no tone of its own: the visitor hears
+          // whatever their own device is set to use for a notification,
+          // which is the sound they already recognise.
           silent: false,
         },
       },

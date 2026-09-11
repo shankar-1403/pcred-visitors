@@ -14,7 +14,6 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useStaff } from "@/src/hooks/useStaff";
 import { useRole } from "@/src/hooks/useRole";
 import { registerPushToken } from "@/src/lib/push";
-import { playChime } from "@/src/lib/chime";
 import {
   useVisitorRequests,
   type VisitorRequest,
@@ -107,8 +106,9 @@ export default function VisitorAlert() {
       return [...prev, ...fresh.filter((request) => !existing.has(request.id))];
     });
 
-    // One chime per arrival, not a repeating loop — a notification, not an alarm.
-    playChime();
+    // No sound is played here on purpose. The OS notification below carries
+    // the one the person has chosen on their own device, and a tone of ours
+    // on top of it would both double up and override that choice.
 
     // Staff get a native OS popup as well. Reception only needs the in-app
     // toast — those OS notifications are phrased as a host's personal alert.

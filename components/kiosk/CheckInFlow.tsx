@@ -16,7 +16,6 @@ import SetupNotice from "@/components/SetupNotice";
 import { useVisitorRequest } from "@/src/hooks/useVisitorRequest";
 import { createVisitorRequest, fetchBusyBlocks } from "@/src/lib/data";
 import { requestPushToken } from "@/src/lib/push";
-import { playChime } from "@/src/lib/chime";
 import { buildDaySlots, type BusyInterval, type Slot } from "@/src/lib/availability";
 
 /** The next 7 days a staff member's own link lets someone book into. */
@@ -140,11 +139,6 @@ export default function CheckInFlow({
 
   const meetingStaff = presetStaffId ? presetStaff ?? null : selectedStaff;
 
-  // Sounds once when the answer lands, for the visitor who is still here but
-  // looking somewhere else. The push covers them once they've wandered off;
-  // this covers the seat by the door.
-  const chimed = useRef(false);
-
   const reset = useCallback(() => {
     setStep(presetStaffId ? "form" : "welcome");
     setForm(initialForm);
@@ -157,16 +151,7 @@ export default function CheckInFlow({
     setSelectedDayIndex(0);
     setRequestedFor(null);
     setTimeError("");
-    // Armed again, so the next visitor's answer is heard too.
-    chimed.current = false;
   }, [presetStaffId]);
-
-  useEffect(() => {
-    if (!resolved || chimed.current) return;
-
-    chimed.current = true;
-    playChime();
-  }, [resolved]);
 
   // Idle guard: any half-finished check-in is wiped so the next visitor never
   // sees (or accidentally submits under) someone else's details.
