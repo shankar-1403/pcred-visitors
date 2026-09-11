@@ -16,6 +16,7 @@ interface VisitorRequestRecord {
   requestedFor?: number | null;
   postponedTo?: number | null;
   status?: string;
+  calendarEventId?: string | null;
 }
 
 /**
@@ -55,6 +56,17 @@ export async function POST(request: Request) {
         { error: "That visit is not approved." },
         { status: 400 }
       );
+    }
+
+    // Safe to call again. The approval itself is written by the host's
+    // browser, so this can be retried later to recover a visit that never
+    // made it onto the calendar — without that retry landing a second block
+    // on top of a visit that is already there.
+    if (visit.calendarEventId) {
+      return NextResponse.json({
+        calendarEventId: visit.calendarEventId,
+        skipped: "already-on-calendar",
+      });
     }
 
     const isPostponed = visit.status === "postponed";

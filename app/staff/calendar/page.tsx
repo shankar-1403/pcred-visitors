@@ -14,17 +14,21 @@ import { AnimatePresence, motion } from "motion/react";
 import {
   IconChevronLeft,
   IconChevronRight,
+  IconDownload,
   IconMapPin,
   IconPlus,
   IconUserCheck,
   IconX,
 } from "@tabler/icons-react";
 import {
+  addVisitToCalendar,
   createMyEvent,
   fetchMyEvents,
   updateMyEvent,
   type CalendarEvent,
 } from "@/src/lib/data";
+import { useVisitorRequests } from "@/src/hooks/useVisitorRequests";
+import { buildEventsCsv } from "@/src/lib/report-csv";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import RoleGate from "@/components/RoleGate";
@@ -82,6 +86,8 @@ const dayFmt = new Intl.DateTimeFormat("en-IN", {
 });
 
 function CalendarView() {
+  // Native date pickers follow color-scheme, not our classes.
+  const { theme } = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -105,6 +111,27 @@ function CalendarView() {
   if (dayMonthKey !== syncedDayMonthKey) {
     setSyncedDayMonthKey(dayMonthKey);
     setMonthCursor(new Date(day.getFullYear(), day.getMonth(), 1));
+  }
+
+  // The report range. Starts on whichever month is being looked at and
+  // follows the arrows, so "download this month" needs no typing — but it is
+  // still two plain dates, so any span can be pulled out.
+  const monthStartKey = toKey(
+    new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1)
+  );
+  const monthEndKey = toKey(
+    new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 0)
+  );
+
+  const [range, setRange] = useState({ from: monthStartKey, to: monthEndKey });
+  const [syncedMonthStart, setSyncedMonthStart] = useState(monthStartKey);
+  const [downloading, setDownloading] = useState(false);
+  const [reportError, setReportError] = useState("");
+
+  if (monthStartKey !== syncedMonthStart) {
+    setSyncedMonthStart(monthStartKey);
+    setRange({ from: monthStartKey, to: monthEndKey });
+    setReportError("");
   }
 
   const monthGrid = useMemo(() => buildMonthGrid(monthCursor), [monthCursor]);
@@ -183,11 +210,95 @@ function CalendarView() {
 
   const reload = useCallback(() => setReloadNonce((n) => n + 1), []);
 
+  // A visit's calendar block is written by the host's browser the moment they
+  // answer, so a closed tab or a dropped connection can leave a meeting that
+  // genuinely happened off the calendar for good — and out of the month's
+  // figures. Anything still missing is put back the next time they open the
+  // calendar, which is exactly when a complete record starts to matter.
+  const { mine } = useVisitorRequests();
+  const recovered = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const missing = mine.filter(
+      (request) =>
+        (request.status === "approved" || request.status === "postponed") &&
+        !request.calendarEventId &&
+        !recovered.current.has(request.id)
+    );
+
+    if (missing.length === 0) return;
+
+    missing.forEach((request) => recovered.current.add(request.id));
+
+    void (async () => {
+      let added = 0;
+
+      for (const request of missing) {
+        try {
+          await addVisitToCalendar(request.id);
+          added += 1;
+        } catch {
+          // Leave it for the next visit to this page rather than retrying in
+          // a loop against whatever is currently failing.
+          recovered.current.delete(request.id);
+        }
+      }
+
+      if (added > 0) reload();
+    })();
+  }, [mine, reload]);
+
   // Keeps the "now" line honest without re-fetching.
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(timer);
   }, []);
+
+  const downloadReport = async () => {
+    const from = fromKey(range.from);
+    const to = fromKey(range.to);
+
+    if (to.getTime() < from.getTime()) {
+      setReportError("The end date is before the start date.");
+      return;
+    }
+
+    setReportError("");
+    setDownloading(true);
+
+    try {
+      // Whole days at both ends: a range typed as 1st–30th has to include
+      // everything that happened on the 30th, not stop at midnight.
+      const result = await fetchMyEvents(
+        from.getTime(),
+        to.getTime() + 24 * 3_600_000 - 1
+      );
+
+      if (result.events.length === 0) {
+        setReportError("No meetings in those dates.");
+        return;
+      }
+
+      // The BOM is what makes Excel read this as UTF-8 rather than mangling
+      // any name that isn't plain ASCII.
+      const blob = new Blob(["﻿", buildEventsCsv(result.events)], {
+        type: "text/csv;charset=utf-8;",
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `pcred-meetings-${range.from}-to-${range.to}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setReportError("Could not build the report. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const goto = (date: Date) => router.push(`/staff/calendar?date=${toKey(date)}`);
 
@@ -219,6 +330,26 @@ function CalendarView() {
     () => monthEvents.filter((event) => toKey(new Date(event.start)) === toKey(day)),
     [monthEvents, day]
   );
+
+  // The month's own totals. Counted off the grid's events but filtered back to
+  // the month on screen, because the grid deliberately carries the days either
+  // side of it to fill whole weeks — those belong to a different month's count.
+  const monthSummary = useMemo(() => {
+    const inMonth = monthEvents.filter((event) => {
+      const date = new Date(event.start);
+      return (
+        date.getMonth() === monthCursor.getMonth() &&
+        date.getFullYear() === monthCursor.getFullYear()
+      );
+    });
+
+    return {
+      total: inMonth.length,
+      visitors: inMonth.filter((event) => event.isVisit).length,
+      added: inMonth.filter((event) => !event.isVisit).length,
+      rescheduled: inMonth.filter((event) => event.source === "postponed").length,
+    };
+  }, [monthEvents, monthCursor]);
 
   const isToday = toKey(new Date()) === toKey(day);
 
@@ -385,6 +516,66 @@ function CalendarView() {
             </button>
           </div>
         </div>
+
+        {/* The month at a glance, so looking back at the end of a month is a
+            read rather than a count. Sits with the month it describes and
+            moves with the arrows above. */}
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-3 border-b border-navy-500/10 dark:border-white/10 px-4 py-3 sm:px-6">
+          <MonthStat label="Meetings" value={monthSummary.total} />
+          <MonthStat label="Visitors" value={monthSummary.visitors} />
+          <MonthStat label="Added by you" value={monthSummary.added} />
+          {monthSummary.rescheduled > 0 ? (
+            <MonthStat label="Rescheduled" value={monthSummary.rescheduled} />
+          ) : null}
+
+          {/* Sits with the figures it exports. Pre-filled with the month on
+              screen, so the common case is one click. */}
+          <div className="ms-auto flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              aria-label="Report from"
+              value={range.from}
+              max={range.to}
+              onChange={(event) => {
+                setRange((prev) => ({ ...prev, from: event.target.value }));
+                setReportError("");
+              }}
+              style={{ colorScheme: theme }}
+              className="min-h-10 rounded-xl border border-navy-500/20 dark:border-white/15 bg-white dark:bg-surface-dark-card px-3 text-sm text-navy-500 dark:text-white outline-none focus:border-navy-500"
+            />
+            <span className="text-xs text-stone-500 dark:text-white/45">to</span>
+            <input
+              type="date"
+              aria-label="Report to"
+              value={range.to}
+              min={range.from}
+              onChange={(event) => {
+                setRange((prev) => ({ ...prev, to: event.target.value }));
+                setReportError("");
+              }}
+              style={{ colorScheme: theme }}
+              className="min-h-10 rounded-xl border border-navy-500/20 dark:border-white/15 bg-white dark:bg-surface-dark-card px-3 text-sm text-navy-500 dark:text-white outline-none focus:border-navy-500"
+            />
+            <button
+              type="button"
+              onClick={downloadReport}
+              disabled={downloading}
+              className="flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-navy-500/20 dark:border-white/15 px-4 text-sm font-semibold text-navy-500 dark:text-white transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <IconDownload className="size-4" />
+              {downloading ? "Preparing…" : "Download CSV"}
+            </button>
+          </div>
+        </div>
+
+        {reportError ? (
+          <p
+            role="status"
+            className="border-b border-navy-500/10 dark:border-white/10 px-4 pb-3 text-sm text-maroon-500 dark:text-maroon-200 sm:px-6"
+          >
+            {reportError}
+          </p>
+        ) : null}
 
         <div className="grid grid-cols-7 border-b border-navy-500/10 dark:border-white/10 bg-navy-500/[0.03]">
           {WEEKDAY_LABELS.map((label) => (
@@ -817,6 +1008,21 @@ function CalendarView() {
     `type="time"` input's 12h/24h display follows the browser's own locale,
     which isn't reliable, so the picker below is built from three selects
     instead, always showing AM/PM regardless of device or browser settings. */
+/** One figure in the month summary. Number first, because that is the part
+    being scanned; the label only says what it counts. */
+function MonthStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <span className="font-serif text-xl text-navy-500 dark:text-white">
+        {value}
+      </span>
+      <span className="text-xs font-medium uppercase tracking-[0.12em] text-stone-500 dark:text-white/45">
+        {label}
+      </span>
+    </div>
+  );
+}
+
 function parseTime(hhmm: string) {
   const [h = 0, m = 0] = hhmm.split(":").map(Number);
   const period: "AM" | "PM" = h >= 12 ? "PM" : "AM";

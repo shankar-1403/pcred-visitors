@@ -15,6 +15,8 @@ import { HAS_FIREBASE_CONFIG } from "@/src/lib/firebase";
 import SetupNotice from "@/components/SetupNotice";
 import { useVisitorRequest } from "@/src/hooks/useVisitorRequest";
 import { createVisitorRequest, fetchBusyBlocks } from "@/src/lib/data";
+import { requestPushToken } from "@/src/lib/push";
+import { playChime } from "@/src/lib/chime";
 import { buildDaySlots, type BusyInterval, type Slot } from "@/src/lib/availability";
 
 /** The next 7 days a staff member's own link lets someone book into. */
@@ -48,8 +50,6 @@ type Step = "welcome" | "form" | "status";
 
 /** How long a half-filled form left on a lobby tablet sits before it resets. */
 const IDLE_RESET_MS = 90_000;
-/** How long a finished request stays on screen before the tablet returns home. */
-const RESULT_RESET_MS = 25_000;
 
 const initialForm = {
   visitorName: "",
@@ -140,6 +140,11 @@ export default function CheckInFlow({
 
   const meetingStaff = presetStaffId ? presetStaff ?? null : selectedStaff;
 
+  // Sounds once when the answer lands, for the visitor who is still here but
+  // looking somewhere else. The push covers them once they've wandered off;
+  // this covers the seat by the door.
+  const chimed = useRef(false);
+
   const reset = useCallback(() => {
     setStep(presetStaffId ? "form" : "welcome");
     setForm(initialForm);
@@ -152,7 +157,16 @@ export default function CheckInFlow({
     setSelectedDayIndex(0);
     setRequestedFor(null);
     setTimeError("");
+    // Armed again, so the next visitor's answer is heard too.
+    chimed.current = false;
   }, [presetStaffId]);
+
+  useEffect(() => {
+    if (!resolved || chimed.current) return;
+
+    chimed.current = true;
+    playChime();
+  }, [resolved]);
 
   // Idle guard: any half-finished check-in is wiped so the next visitor never
   // sees (or accidentally submits under) someone else's details.
@@ -176,15 +190,6 @@ export default function CheckInFlow({
       events.forEach((event) => window.removeEventListener(event, bump));
     };
   }, [step, reset]);
-
-  // Once the staff member has answered, hold the outcome on screen long enough
-  // to read, then hand the tablet back to the next visitor.
-  useEffect(() => {
-    if (step !== "status" || !resolved) return;
-
-    const timer = setTimeout(reset, RESULT_RESET_MS);
-    return () => clearTimeout(timer);
-  }, [step, resolved, reset]);
 
   // Busy blocks carry only timing, never a title — this is the public
   // mirror the kiosk's own availability check already relies on, so a
@@ -339,6 +344,12 @@ export default function CheckInFlow({
     // "Other" reason travels in the note instead of being silently dropped.
     const purposeNote = isOther ? form.purposeOther.trim() : "";
 
+    // Whatever they checked in on — their own phone or laptop, or the tablet
+    // at the desk — is where the answer gets pushed, so nobody has to stand
+    // and watch a screen to find out. Declined or unsupported simply means
+    // the screen stays the only place it appears.
+    const visitorPushToken = await requestPushToken();
+
     try {
       const id = await createVisitorRequest({
         staffId: target.id,
@@ -351,6 +362,7 @@ export default function CheckInFlow({
         purpose: form.purpose || "Other",
         purposeNote,
         ...(presetStaffId ? { requestedFor } : {}),
+        ...(visitorPushToken ? { visitorPushToken } : {}),
       });
 
       setSelectedStaff(target);
@@ -530,9 +542,15 @@ export default function CheckInFlow({
                         type="tel"
                         inputMode="tel"
                         value={form.visitorPhone}
-                        onChange={(value) => setField("visitorPhone", sanitizePhone(value))}
+                        onChange={(value) => {
+                          const next = sanitizePhone(value);
+                          // Counted in digits, not characters: capping the
+                          // field length instead let a 13th digit through
+                          // whenever the country code was typed without "+".
+                          if (next.replace(/\D/g, "").length > 12) return;
+                          setField("visitorPhone", next);
+                        }}
                         error={fieldErrors.visitorPhone}
-                        maxLength={13}
                         autoComplete="tel"
                         placeholder="+91 98765 43210"
                       />

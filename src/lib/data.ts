@@ -219,6 +219,9 @@ export interface NewVisitorRequest {
   /** The slot picked on a staff member's own booking link. Omitted (or null)
       on the walk-in kiosk, which has no schedule to pick from. */
   requestedFor?: number | null;
+  /** Where to push the outcome once the host answers. Captured at check-in
+      because an anonymous visitor cannot edit their request afterwards. */
+  visitorPushToken?: string;
 }
 
 export async function createVisitorRequest(
@@ -421,6 +424,30 @@ export async function createStaffAccount(
   return { created: data.created ?? true };
 }
 
+/**
+ * Puts an approved or postponed visit on the host's own calendar, so the
+ * month's record holds every meeting that actually happened rather than only
+ * the ones staff typed in themselves.
+ *
+ * Safe to call more than once: the server returns the block a visit already
+ * has instead of adding a second one, which is what lets a missed write be
+ * recovered later.
+ */
+export async function addVisitToCalendar(requestId: string): Promise<void> {
+  const response = await fetch("/api/visits/confirm", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(await authHeader()),
+    },
+    body: JSON.stringify({ requestId }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not add the visit to the calendar: ${response.status}`);
+  }
+}
+
 export async function respondToRequest(
   requestId: string,
   patch: Partial<VisitorRequest>
@@ -429,13 +456,13 @@ export async function respondToRequest(
 
   await update(ref(db, `visitor_requests/${requestId}`), patch);
 
-  // The visitor has already been told the outcome by the write above, so a
-  // calendar failure is logged and swallowed rather than surfaced as a failed
-  // approval. A postponed visit gets a calendar slot too — that's the whole
-  // point of postponing rather than declining — just at the rescheduled time.
-  if (patch.status === "approved" || patch.status === "postponed") {
+  // Reach the visitor wherever they are. The kiosk screen only helps someone
+  // still looking at it, and waiting for an answer is exactly when attention
+  // wanders — so every outcome, including a decline, is pushed to whatever
+  // device they checked in on.
+  if (patch.status && patch.status !== "pending") {
     try {
-      await fetch("/api/visits/confirm", {
+      await fetch("/api/visits/notify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -443,6 +470,22 @@ export async function respondToRequest(
         },
         body: JSON.stringify({ requestId }),
       });
+    } catch (error) {
+      console.error(
+        "[visitor-app] responded, but could not notify the visitor:",
+        error
+      );
+    }
+  }
+
+  // The visitor has already been told the outcome by the write above, so a
+  // calendar failure is logged and swallowed rather than surfaced as a failed
+  // approval. A postponed visit gets a calendar slot too — that's the whole
+  // point of postponing rather than declining — just at the rescheduled time.
+  // Anything lost here is picked up again by the calendar's own backfill.
+  if (patch.status === "approved" || patch.status === "postponed") {
+    try {
+      await addVisitToCalendar(requestId);
     } catch (error) {
       console.error(
         "[visitor-app] responded, but could not add it to the calendar:",

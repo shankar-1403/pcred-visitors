@@ -214,6 +214,9 @@ export async function POST(request: Request) {
     const company = field(body.company, 160);
     const visitorDesignation = field(body.designation, 120);
     const visitorAddress = field(body.address, 300);
+    // Optional throughout: a visitor who declined notifications, or whose
+    // browser has no push at all, still checks in exactly as before.
+    const visitorPushToken = field(body.visitorPushToken, 400);
 
     if (
       !staffId ||
@@ -297,6 +300,7 @@ export async function POST(request: Request) {
       company,
       visitorDesignation,
       visitorAddress,
+      visitorPushToken,
       partySize,
       purpose,
       purposeNote: field(body.purposeNote, 500),
