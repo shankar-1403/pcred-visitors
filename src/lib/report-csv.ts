@@ -42,6 +42,7 @@ const HEADERS = [
   "Phone",
   "Email",
   "Purpose",
+  "Notes",
 ];
 
 /**
@@ -66,6 +67,7 @@ export function buildEventsCsv(events: CalendarEvent[]): string {
         event.clientPhone,
         event.clientEmail,
         event.location,
+        event.notes,
       ]
         .map(cell)
         .join(",")

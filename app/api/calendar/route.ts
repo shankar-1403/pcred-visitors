@@ -45,6 +45,8 @@ interface CalendarEventRecord {
   clientPhone?: string;
   clientEmail?: string;
   clientCompany?: string;
+  /** Written after the meeting, by /api/calendar/notes — read-only here. */
+  notes?: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
