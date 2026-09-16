@@ -16,7 +16,7 @@ import SetupNotice from "@/components/SetupNotice";
 import { useVisitorRequest } from "@/src/hooks/useVisitorRequest";
 import { createVisitorRequest, fetchBusyBlocks } from "@/src/lib/data";
 import { listenForForegroundPush, requestPushToken } from "@/src/lib/push";
-import { DEPARTMENTS } from "@/src/lib/departments";
+import { STAFF_DEPARTMENTS } from "@/src/lib/departments";
 import { buildDaySlots, type BusyInterval, type Slot } from "@/src/lib/availability";
 
 /** The next 7 days a staff member's own link lets someone book into. */
@@ -246,11 +246,13 @@ export default function CheckInFlow({
   };
 
   // Department options come from who is actually active right now, not the
-  // fixed six — a department nobody active belongs to would otherwise be
-  // pickable and lead straight to an empty list.
+  // fixed list — a department nobody active belongs to would otherwise be
+  // pickable and lead straight to an empty list. Admin is included here too
+  // (the same list the staff directory offers) — reception staff answer
+  // visitors as much as anyone else, so a visitor may well be here for one.
   const departmentOptions = useMemo(() => {
     const present = new Set(activeStaff.map((member) => member.department));
-    return DEPARTMENTS.filter((department) => present.has(department)).map(
+    return STAFF_DEPARTMENTS.filter((department) => present.has(department)).map(
       (department) => ({ value: department, label: department })
     );
   }, [activeStaff]);
