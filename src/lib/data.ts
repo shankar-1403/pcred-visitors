@@ -260,6 +260,10 @@ export interface CalendarEvent {
   clientPhone?: string;
   clientEmail?: string;
   clientCompany?: string;
+  /** What actually happened — written after the meeting is over, by the
+      staff member whose calendar it's on. Never triggers a notification or
+      email; it's a private record for looking back, not an update to send. */
+  notes?: string;
 }
 
 export interface CalendarResult {
@@ -347,6 +351,27 @@ export async function updateMyEvent(
 
   if (!response.ok) {
     throw new Error(data.error ?? "Could not update that event.");
+  }
+}
+
+/**
+ * Records what happened at a meeting that's already over — visitor-approved
+ * or self-added, either one. Deliberately its own endpoint, separate from
+ * `updateMyEvent`: this never sends the "meeting created" email that editing
+ * a live event does, and it works on a visitor booking too, which that route
+ * refuses to touch.
+ */
+export async function updateEventNotes(id: string, notes: string): Promise<void> {
+  const response = await fetch("/api/calendar/notes", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({ id, notes }),
+  });
+
+  const data = (await response.json()) as { error?: string };
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Could not save those notes.");
   }
 }
 

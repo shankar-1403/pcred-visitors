@@ -16,6 +16,7 @@ import {
   IconChevronRight,
   IconDownload,
   IconMapPin,
+  IconNotes,
   IconPlus,
   IconUserCheck,
   IconX,
@@ -24,6 +25,7 @@ import {
   addVisitToCalendar,
   createMyEvent,
   fetchMyEvents,
+  updateEventNotes,
   updateMyEvent,
   type CalendarEvent,
 } from "@/src/lib/data";
@@ -167,6 +169,15 @@ function CalendarView() {
   // updates immediately, so the second call is still caught.
   const submittingRef = useRef(false);
   const [addError, setAddError] = useState("");
+
+  // A finished meeting's own notes — separate state from the add/edit event
+  // form above, since it's a different action on a different kind of event
+  // (this one also works on a visitor booking, which that form refuses).
+  const [notesEvent, setNotesEvent] = useState<CalendarEvent | null>(null);
+  const [notesDraft, setNotesDraft] = useState("");
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesError, setNotesError] = useState("");
+  const notesSubmittingRef = useRef(false);
   const [form, setForm] = useState({
     title: "",
     start: "10:00",
@@ -459,6 +470,40 @@ function CalendarView() {
     } finally {
       submittingRef.current = false;
       setSaving(false);
+    }
+  }
+
+  const openNotes = (event: CalendarEvent) => {
+    setNotesEvent(event);
+    setNotesDraft(event.notes ?? "");
+    setNotesError("");
+  };
+
+  const closeNotesModal = () => {
+    setNotesEvent(null);
+    setNotesDraft("");
+    setNotesError("");
+  };
+
+  async function handleSaveNotes() {
+    if (!notesEvent) return;
+    if (notesSubmittingRef.current) return;
+
+    notesSubmittingRef.current = true;
+    setNotesSaving(true);
+    setNotesError("");
+
+    try {
+      await updateEventNotes(notesEvent.id, notesDraft.trim());
+      closeNotesModal();
+      reload();
+    } catch (err: unknown) {
+      setNotesError(
+        err instanceof Error ? err.message : "Could not save those notes."
+      );
+    } finally {
+      notesSubmittingRef.current = false;
+      setNotesSaving(false);
     }
   }
 
@@ -774,17 +819,36 @@ function CalendarView() {
                                   ) : null}
                                 </p>
                               ) : null}
+                              {event.notes ? (
+                                <p className="mt-1 flex items-start gap-1 text-xs text-stone-500 dark:text-white/50">
+                                  <IconNotes className="mt-0.5 size-3 shrink-0" />
+                                  <span className="line-clamp-2">{event.notes}</span>
+                                </p>
+                              ) : null}
                             </div>
 
-                            {!event.isVisit ? (
-                              <button
-                                type="button"
-                                onClick={() => openEdit(event)}
-                                className="shrink-0 cursor-pointer self-center rounded-lg px-2 py-1 text-xs font-medium text-navy-500 dark:text-white/70 transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
-                              >
-                                Edit
-                              </button>
-                            ) : null}
+                            <div className="flex shrink-0 items-center gap-1 self-center">
+                              {/* Notes work on any finished meeting — a visitor's
+                                  approved visit included, unlike Edit below. */}
+                              {event.end <= now ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openNotes(event)}
+                                  className="cursor-pointer rounded-lg px-2 py-1 text-xs font-medium text-navy-500 dark:text-white/70 transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
+                                >
+                                  {event.notes ? "Edit notes" : "Add notes"}
+                                </button>
+                              ) : null}
+                              {!event.isVisit ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openEdit(event)}
+                                  className="cursor-pointer rounded-lg px-2 py-1 text-xs font-medium text-navy-500 dark:text-white/70 transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
+                                >
+                                  Edit
+                                </button>
+                              ) : null}
+                            </div>
                           </li>
                         );
                       })}
@@ -996,6 +1060,95 @@ function CalendarView() {
                       : "Add to my calendar"}
                 </button>
               </form>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      {/* Notes on a finished meeting — its own small modal, deliberately
+          apart from the add/edit one above: it has one field, no time or
+          contact details, and saving it never emails anyone. */}
+      <AnimatePresence>
+        {notesEvent ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={closeNotesModal}
+              className="absolute inset-0 cursor-pointer bg-navy-500/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ duration: 0.25 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Meeting notes"
+              className="relative z-10 w-full max-w-md rounded-4xl bg-white dark:bg-surface-dark-card p-6 shadow-2xl"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="font-serif text-lg text-navy-500 dark:text-white">
+                    Notes
+                  </p>
+                  <p className="mt-0.5 truncate text-sm text-stone-500 dark:text-white/50">
+                    {notesEvent.title} · {timeFmt.format(notesEvent.start)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeNotesModal}
+                  aria-label="Close"
+                  className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-navy-500/15 dark:border-white/10 text-navy-500 dark:text-white transition-colors hover:bg-navy-500/10 dark:bg-white/10"
+                >
+                  <IconX className="size-5" />
+                </button>
+              </div>
+
+              <label htmlFor="meeting-notes" className="sr-only">
+                What happened at this meeting
+              </label>
+              <textarea
+                id="meeting-notes"
+                rows={5}
+                autoFocus
+                value={notesDraft}
+                onChange={(event) => setNotesDraft(event.target.value)}
+                placeholder="What happened at this meeting?"
+                maxLength={2000}
+                style={{ colorScheme: theme }}
+                className="mt-4 w-full resize-none rounded-2xl border border-navy-500/20 dark:border-white/15 bg-white dark:bg-surface-dark-card p-4 text-sm text-navy-500 dark:text-white outline-none focus:border-navy-500"
+              />
+
+              {notesError ? (
+                <p className="mt-2 text-sm text-maroon-500 dark:text-maroon-200">
+                  {notesError}
+                </p>
+              ) : null}
+
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeNotesModal}
+                  className="min-h-11 cursor-pointer rounded-xl px-4 text-sm font-medium text-navy-500 dark:text-white/70 transition-colors hover:bg-navy-500/8 dark:hover:bg-white/8"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveNotes}
+                  disabled={notesSaving}
+                  className="min-h-11 cursor-pointer rounded-xl bg-navy-500 px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {notesSaving ? "Saving…" : "Save"}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         ) : null}
