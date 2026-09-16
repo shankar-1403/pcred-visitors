@@ -16,6 +16,7 @@ import SetupNotice from "@/components/SetupNotice";
 import { useVisitorRequest } from "@/src/hooks/useVisitorRequest";
 import { createVisitorRequest, fetchBusyBlocks } from "@/src/lib/data";
 import { listenForForegroundPush, requestPushToken } from "@/src/lib/push";
+import { DEPARTMENTS } from "@/src/lib/departments";
 import { buildDaySlots, type BusyInterval, type Slot } from "@/src/lib/availability";
 
 /** The next 7 days a staff member's own link lets someone book into. */
@@ -119,8 +120,13 @@ export default function CheckInFlow({
   const [step, setStep] = useState<Step>(presetStaffId ? "form" : "welcome");
   const [form, setForm] = useState(initialForm);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
+  // The staff list is long enough that picking a department first is what
+  // actually makes it a mid-length list rather than the whole office at
+  // once — a plain filter, never sent anywhere itself.
+  const [departmentFilter, setDepartmentFilter] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [purposeError, setPurposeError] = useState("");
+  const [departmentError, setDepartmentError] = useState("");
   const [staffError, setStaffError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -143,8 +149,10 @@ export default function CheckInFlow({
     setStep(presetStaffId ? "form" : "welcome");
     setForm(initialForm);
     setSelectedStaff(null);
+    setDepartmentFilter("");
     setFieldErrors({});
     setPurposeError("");
+    setDepartmentError("");
     setStaffError("");
     setSubmitError("");
     setRequestId(null);
@@ -237,9 +245,20 @@ export default function CheckInFlow({
     setTimeError("");
   };
 
+  // Department options come from who is actually active right now, not the
+  // fixed six — a department nobody active belongs to would otherwise be
+  // pickable and lead straight to an empty list.
+  const departmentOptions = useMemo(() => {
+    const present = new Set(activeStaff.map((member) => member.department));
+    return DEPARTMENTS.filter((department) => present.has(department)).map(
+      (department) => ({ value: department, label: department })
+    );
+  }, [activeStaff]);
+
   const staffOptions = useMemo(
     () =>
-      [...activeStaff]
+      activeStaff
+        .filter((member) => member.department === departmentFilter)
         .sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")))
         .map((member) => ({
           value: member.id,
@@ -247,7 +266,7 @@ export default function CheckInFlow({
             .filter(Boolean)
             .join(" — "),
         })),
-    [activeStaff]
+    [activeStaff, departmentFilter]
   );
 
   const setField = (name: keyof typeof initialForm, value: string) => {
@@ -311,6 +330,11 @@ export default function CheckInFlow({
           : ""
     );
 
+    // A department first, on the walk-in kiosk only — a staff member's own
+    // link already knows who, so there is nothing here to narrow down.
+    const hasDepartment = Boolean(presetStaffId) || Boolean(departmentFilter);
+    setDepartmentError(hasDepartment ? "" : "Please choose a department.");
+
     const target = presetStaff ?? selectedStaff;
     const hasStaff = presetStaffId ? Boolean(presetStaff) : Boolean(selectedStaff);
     setStaffError(hasStaff ? "" : "Please choose who you're here to meet.");
@@ -320,7 +344,7 @@ export default function CheckInFlow({
     const hasTime = !presetStaffId || requestedFor !== null;
     setTimeError(hasTime ? "" : "Please pick a day and time.");
 
-    if (!detailsOk || !hasPurpose || !hasStaff || !hasTime || !target) return;
+    if (!detailsOk || !hasPurpose || !hasDepartment || !hasStaff || !hasTime || !target) return;
 
     setSubmitError("");
     setSubmitting(true);
@@ -370,6 +394,15 @@ export default function CheckInFlow({
 
   const selectStaffById = (id: string) => {
     setSelectedStaff(activeStaff.find((member) => member.id === id) ?? null);
+    setStaffError("");
+  };
+
+  const selectDepartment = (department: string) => {
+    setDepartmentFilter(department);
+    setDepartmentError("");
+    // Whoever was picked belonged to the old list — clearing them here means
+    // switching departments can never leave someone else's pick standing.
+    setSelectedStaff(null);
     setStaffError("");
   };
 
@@ -607,22 +640,40 @@ export default function CheckInFlow({
                         </div>
                       ) : null}
                       {!presetStaffId ? (
-                        <KioskField
-                          id="meetingStaff"
-                          label="Who are you here to meet?"
-                          required
-                          value={selectedStaff?.id ?? ""}
-                          onChange={(value) => selectStaffById(value)}
-                          error={staffError}
-                          placeholder={
-                            staffLoading
-                              ? "Loading staff…"
-                              : staffLoadError
-                                ? "Couldn't load the staff list"
-                                : "Select who you're here to see"
-                          }
-                          options={staffOptions}
-                        />
+                        <>
+                          <KioskField
+                            id="department"
+                            label="Department"
+                            required
+                            value={departmentFilter}
+                            onChange={(value) => selectDepartment(value)}
+                            error={departmentError}
+                            placeholder={
+                              staffLoading
+                                ? "Loading…"
+                                : "Select a department"
+                            }
+                            options={departmentOptions}
+                          />
+                          <KioskField
+                            id="meetingStaff"
+                            label="Who are you here to meet?"
+                            required
+                            value={selectedStaff?.id ?? ""}
+                            onChange={(value) => selectStaffById(value)}
+                            error={staffError}
+                            placeholder={
+                              staffLoading
+                                ? "Loading staff…"
+                                : staffLoadError
+                                  ? "Couldn't load the staff list"
+                                  : !departmentFilter
+                                    ? "Choose a department first"
+                                    : "Select who you're here to see"
+                            }
+                            options={staffOptions}
+                          />
+                        </>
                       ) : null}
                       <KioskField
                         id="address"

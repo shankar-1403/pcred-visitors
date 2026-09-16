@@ -4,6 +4,7 @@ import React, { useMemo, useState, type ChangeEvent, type FormEvent } from "reac
 import { AnimatePresence, motion } from "motion/react";
 import { IconCheck, IconLink, IconSearch, IconX } from "@tabler/icons-react";
 import { createStaffAccount, patchStaffMember, saveStaffMember } from "@/src/lib/data";
+import { STAFF_DEPARTMENTS } from "@/src/lib/departments";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
 import { useStaff, type Staff } from "@/src/hooks/useStaff";
@@ -340,15 +341,21 @@ export default function StaffDirectory() {
                       <label htmlFor="department" className={labelClass}>
                         Department
                       </label>
-                      <input
+                      <select
                         id="department"
                         name="department"
                         value={formData.department}
                         onChange={handleChange}
-                        type="text"
-                        placeholder="e.g. Advisory"
-                        className={inputClass}
-                      />
+                        style={{ colorScheme: theme }}
+                        className={`${inputClass} cursor-pointer bg-white dark:bg-surface-dark-card`}
+                      >
+                        <option value="">No department</option>
+                        {STAFF_DEPARTMENTS.map((department) => (
+                          <option key={department} value={department}>
+                            {department}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label htmlFor="email" className={labelClass}>
