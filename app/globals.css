@@ -57,28 +57,6 @@
     letter-spacing: 0.01em;
   }
 
-  /*
-   * The staff/reception dark toggle adds `.dark` to a div inside body, not to
-   * body itself — so body's own background above stayed the light stone-50
-   * regardless of that toggle. Wherever the actual visible area doesn't line
-   * up exactly with that inner min-h-screen div — a phone's safe-area inset,
-   * iOS's elastic overscroll past the bottom, any viewport-height rounding —
-   * that light strip showed through beneath the dark page. Mirroring the
-   * background on body itself, keyed off the same class, means there is
-   * nothing underneath left to show through, on any device.
-   */
-  body:has(.dark) {
-    background-color: var(--color-surface-dark);
-  }
-
-  /* The kiosk and the login screen render their own fixed dark navy
-     regardless of that toggle — same fix, same reason. A plain attribute
-     rather than matching on a class, since the login screen's background is
-     an inline gradient value with no `bg-brand-deep` class to catch. */
-  body:has([data-fixed-dark]) {
-    background-color: var(--color-brand-deep);
-  }
-
   h1,
   h2,
   h3,
