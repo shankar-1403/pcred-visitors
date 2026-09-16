@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useOfficeMeetings } from "@/src/hooks/useOfficeMeetings";
 import { useStaff } from "@/src/hooks/useStaff";
+import { useTheme } from "@/src/context/ThemeContext";
 import {
   useVisitorRequests,
   type VisitorStatus,
@@ -28,6 +29,7 @@ const timeFmt = new Intl.DateTimeFormat("en-IN", {
 
 type RowStatus = VisitorStatus | "scheduled" | "now";
 type StatusFilter = "all" | "scheduled" | "postponed" | "declined";
+type DateFilter = "today" | "yesterday" | "custom";
 
 const STATUS_STYLES: Record<RowStatus, string> = {
   pending: "bg-amber-50 dark:bg-amber-400/15 text-amber-700 dark:text-amber-300",
@@ -50,6 +52,8 @@ const STATUS_LABELS: Record<RowStatus, string> = {
 interface ReceptionRow {
   id: string;
   when: number;
+  /** When it was booked or last answered — newest of these goes to the top. */
+  sortAt: number;
   visitor: string;
   host: string;
   title: string;
@@ -73,6 +77,32 @@ function visitorFromMeeting(meeting: OfficeMeeting) {
   return "—";
 }
 
+function startOfDay(ms: number) {
+  const date = new Date(ms);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+function endOfDay(ms: number) {
+  const date = new Date(ms);
+  date.setHours(23, 59, 59, 999);
+  return date.getTime();
+}
+
+function toDateInput(ms: number) {
+  const date = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function fromDateInput(value: string, end = false) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return end ? endOfDay(date.getTime()) : startOfDay(date.getTime());
+}
+
 function whenLabel(ms: number, now: number) {
   const start = new Date(ms);
   const today = new Date(now);
@@ -86,12 +116,16 @@ function whenLabel(ms: number, now: number) {
 }
 
 export default function ScheduledMeetings() {
-  const { upcoming, loading: meetingsLoading, error: meetingsError, now } =
+  const { meetings, loading: meetingsLoading, error: meetingsError, now } =
     useOfficeMeetings();
   const { requests, loading: requestsLoading, error: requestsError } =
     useVisitorRequests();
   const { staff } = useStaff();
+  const { theme } = useTheme();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("today");
+  const [customFrom, setCustomFrom] = useState(() => toDateInput(Date.now()));
+  const [customTo, setCustomTo] = useState(() => toDateInput(Date.now()));
 
   const loading = meetingsLoading || requestsLoading;
 
@@ -122,6 +156,7 @@ export default function ScheduledMeetings() {
       return {
         id: `visit-${request.id}`,
         when,
+        sortAt: Math.max(request.createdAt ?? 0, request.respondedAt ?? 0),
         visitor: request.visitorName?.trim() || "Visitor",
         host: request.staffName?.trim() || "Unknown",
         title: request.purpose?.trim() || "Visit",
@@ -132,7 +167,7 @@ export default function ScheduledMeetings() {
       };
     });
 
-    const fromCalendar: ReceptionRow[] = upcoming
+    const fromCalendar: ReceptionRow[] = meetings
       .filter((meeting) => !meeting.isVisit && !linkedEventIds.has(meeting.id))
       .map((meeting) => {
         const inProgress = meeting.start <= now && meeting.end > now;
@@ -140,6 +175,7 @@ export default function ScheduledMeetings() {
         return {
           id: `cal-${meeting.staffId}-${meeting.id}`,
           when: meeting.start,
+          sortAt: meeting.start,
           visitor: visitorFromMeeting(meeting),
           host: staffNames.get(meeting.staffId) ?? "Unknown",
           title: meeting.title || "Untitled",
@@ -148,21 +184,50 @@ export default function ScheduledMeetings() {
         };
       });
 
-    return [...fromVisits, ...fromCalendar].sort((a, b) => b.when - a.when);
-  }, [requests, upcoming, now, staffNames]);
+    return [...fromVisits, ...fromCalendar].sort((a, b) => {
+      if (a.status === "now" && b.status !== "now") return -1;
+      if (b.status === "now" && a.status !== "now") return 1;
+      return b.sortAt - a.sortAt;
+    });
+  }, [requests, meetings, now, staffNames]);
+
+  const dateRange = useMemo(() => {
+    if (dateFilter === "today") {
+      return { start: startOfDay(now), end: endOfDay(now) };
+    }
+
+    if (dateFilter === "yesterday") {
+      const yesterday = now - 24 * 60 * 60 * 1000;
+      return { start: startOfDay(yesterday), end: endOfDay(yesterday) };
+    }
+
+    const from = fromDateInput(customFrom);
+    const to = fromDateInput(customTo, true);
+
+    if (from == null || to == null) return null;
+
+    return from <= to ? { start: from, end: to } : { start: to, end: from };
+  }, [dateFilter, customFrom, customTo, now]);
 
   const filtered = useMemo(() => {
-    if (statusFilter === "all") return rows;
-    if (statusFilter === "scheduled") {
-      return rows.filter(
-        (row) =>
-          row.status === "scheduled" ||
-          row.status === "approved" ||
-          row.status === "now"
-      );
-    }
-    return rows.filter((row) => row.status === statusFilter);
-  }, [rows, statusFilter]);
+    const byStatus =
+      statusFilter === "all"
+        ? rows
+        : statusFilter === "scheduled"
+          ? rows.filter(
+              (row) =>
+                row.status === "scheduled" ||
+                row.status === "approved" ||
+                row.status === "now"
+            )
+          : rows.filter((row) => row.status === statusFilter);
+
+    if (!dateRange) return byStatus;
+
+    return byStatus.filter(
+      (row) => row.when >= dateRange.start && row.when <= dateRange.end
+    );
+  }, [rows, statusFilter, dateRange]);
 
   const {
     page: tablePage,
@@ -184,7 +249,8 @@ export default function ScheduledMeetings() {
             Scheduled meetings
           </h1>
           <p className="mt-1 text-sm text-stone-500 dark:text-white/50">
-            Office-wide visits and meetings, including postponed and declined.
+            Office-wide visits and meetings, newest first, including postponed
+            and declined.
           </p>
         </div>
       </section>
@@ -201,7 +267,10 @@ export default function ScheduledMeetings() {
           <button
             key={value}
             type="button"
-            onClick={() => setStatusFilter(value)}
+            onClick={() => {
+              setStatusFilter(value);
+              setTablePage(1);
+            }}
             aria-pressed={statusFilter === value}
             className={`min-h-11 cursor-pointer rounded-full border px-4 text-xs font-semibold transition-colors duration-200 ${
               statusFilter === value
@@ -225,6 +294,64 @@ export default function ScheduledMeetings() {
       ) : null}
 
       <section className="max-w-full overflow-hidden rounded-xl border border-navy-500/15 bg-white dark:border-white/10 dark:bg-surface-dark-card">
+        <div className="flex flex-wrap items-center gap-2 border-b border-navy-500/10 px-4 py-3 dark:border-white/10">
+          {(
+            [
+              ["today", "Today"],
+              ["yesterday", "Yesterday"],
+              ["custom", "Custom"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => {
+                setDateFilter(value);
+                setTablePage(1);
+              }}
+              aria-pressed={dateFilter === value}
+              className={`min-h-10 cursor-pointer rounded-lg border px-3 text-xs font-semibold transition-colors duration-200 ${
+                dateFilter === value
+                  ? "border-navy-500 bg-navy-500 text-white"
+                  : "border-navy-500/20 text-navy-500 hover:bg-navy-500/6 dark:border-white/15 dark:text-white dark:hover:bg-white/6"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+
+          {dateFilter === "custom" ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2 text-xs text-stone-500 dark:text-white/50">
+                <span>From</span>
+                <input
+                  type="date"
+                  value={customFrom}
+                  onChange={(e) => {
+                    setCustomFrom(e.target.value);
+                    setTablePage(1);
+                  }}
+                  style={{ colorScheme: theme }}
+                  className="min-h-10 cursor-pointer rounded-lg border border-navy-500/20 bg-white px-2 text-sm text-navy-500 dark:border-white/15 dark:bg-surface-dark-raised dark:text-white"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-xs text-stone-500 dark:text-white/50">
+                <span>To</span>
+                <input
+                  type="date"
+                  value={customTo}
+                  onChange={(e) => {
+                    setCustomTo(e.target.value);
+                    setTablePage(1);
+                  }}
+                  style={{ colorScheme: theme }}
+                  className="min-h-10 cursor-pointer rounded-lg border border-navy-500/20 bg-white px-2 text-sm text-navy-500 dark:border-white/15 dark:bg-surface-dark-raised dark:text-white"
+                />
+              </label>
+            </div>
+          ) : null}
+        </div>
+
         <ul className="divide-y divide-navy-500 dark:divide-white/10 sm:hidden">
           {loading ? (
             <li className="px-4 py-6 text-center text-sm text-stone-500 dark:text-white/50">
