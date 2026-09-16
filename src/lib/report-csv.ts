@@ -9,6 +9,34 @@ function cell(value: string | undefined | null) {
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
+/** A hard column width, in characters, for free text a staff member typed —
+    the Notes column, which otherwise runs however long one sentence does and
+    stretches the whole sheet sideways. Breaks on the nearest space where
+    there is one; a run with no spaces at all (a pasted link, a typo with no
+    gaps) is cut mid-word rather than left to keep going. A spreadsheet still
+    needs "wrap text" turned on to show every line at once, but the cell
+    itself no longer forces the column wider to fit it. */
+const NOTES_WRAP_WIDTH = 60;
+
+function wrapNotes(value: string | undefined) {
+  const text = (value ?? "").trim();
+  if (text.length <= NOTES_WRAP_WIDTH) return text;
+
+  const lines: string[] = [];
+  let rest = text;
+
+  while (rest.length > NOTES_WRAP_WIDTH) {
+    const breakAt = rest.lastIndexOf(" ", NOTES_WRAP_WIDTH);
+    const cut = breakAt > 0 ? breakAt : NOTES_WRAP_WIDTH;
+
+    lines.push(rest.slice(0, cut));
+    rest = rest.slice(cut).trimStart();
+  }
+
+  lines.push(rest);
+  return lines.join("\n");
+}
+
 const DATE_FMT = new Intl.DateTimeFormat("en-IN", {
   day: "2-digit",
   month: "short",
@@ -67,7 +95,7 @@ export function buildEventsCsv(events: CalendarEvent[]): string {
         event.clientPhone,
         event.clientEmail,
         event.location,
-        event.notes,
+        wrapNotes(event.notes),
       ]
         .map(cell)
         .join(",")
