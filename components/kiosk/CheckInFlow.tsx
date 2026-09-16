@@ -416,7 +416,10 @@ export default function CheckInFlow({
 
   if (presetStaffInvalid) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-brand-deep px-6 text-center text-white">
+      <div
+        data-fixed-dark
+        className="flex min-h-screen flex-col items-center justify-center bg-brand-deep px-6 text-center text-white"
+      >
         <h1 className="font-serif text-4xl tracking-tight">This link isn&rsquo;t valid</h1>
         <p className="mt-4 max-w-md text-lg text-white/60">
           Please check the link you were given, or speak to the front desk.
@@ -426,7 +429,7 @@ export default function CheckInFlow({
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-brand-deep text-white">
+    <div data-fixed-dark className="relative flex min-h-screen flex-col bg-brand-deep text-white">
       {/* Ambient brand wash. Clipping lives on this layer, not the page:
           overflow-hidden on the root cut off anything taller than the viewport.
           The brand film sits under a heavy scrim so white text keeps its

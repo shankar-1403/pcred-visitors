@@ -25,6 +25,7 @@ export default function SetupNotice({
 
   return (
     <div
+      {...(dark ? { "data-fixed-dark": true } : {})}
       className={`flex min-h-screen w-full flex-1 items-center justify-center px-4 py-10 ${
         dark
           ? "bg-[radial-gradient(120%_90%_at_50%_-10%,#045178_0%,#022436_60%,#01161f_100%)] text-white"

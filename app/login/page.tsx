@@ -49,7 +49,10 @@ function LoginForm() {
   if (!HAS_FIREBASE_CONFIG) return <SetupNotice tone="dark" />;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-[radial-gradient(120%_90%_at_50%_-10%,#045178_0%,#022436_60%,#01161f_100%)] px-4">
+    <div
+      data-fixed-dark
+      className="relative flex min-h-screen items-center justify-center bg-[radial-gradient(120%_90%_at_50%_-10%,#045178_0%,#022436_60%,#01161f_100%)] px-4"
+    >
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl backdrop-blur-sm">
         <div className="mb-6 flex justify-center">
           <Image
@@ -147,7 +150,7 @@ export default function LoginPage() {
   // useSearchParams needs a Suspense boundary so the route can still be
   // prerendered rather than opting the whole page into client rendering.
   return (
-    <Suspense fallback={<div className="min-h-screen bg-brand-deep" />}>
+    <Suspense fallback={<div data-fixed-dark className="min-h-screen bg-brand-deep" />}>
       <LoginForm />
     </Suspense>
   );
