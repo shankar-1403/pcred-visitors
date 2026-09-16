@@ -15,7 +15,7 @@ import { HAS_FIREBASE_CONFIG } from "@/src/lib/firebase";
 import SetupNotice from "@/components/SetupNotice";
 import { useVisitorRequest } from "@/src/hooks/useVisitorRequest";
 import { createVisitorRequest, fetchBusyBlocks } from "@/src/lib/data";
-import { requestPushToken } from "@/src/lib/push";
+import { listenForForegroundPush, requestPushToken } from "@/src/lib/push";
 import { buildDaySlots, type BusyInterval, type Slot } from "@/src/lib/availability";
 
 /** The next 7 days a staff member's own link lets someone book into. */
@@ -334,6 +334,12 @@ export default function CheckInFlow({
     // and watch a screen to find out. Declined or unsupported simply means
     // the screen stays the only place it appears.
     const visitorPushToken = await requestPushToken();
+
+    // This same tab is what the push would otherwise arrive at, and FCM only
+    // hands a message to the service worker while no tab has focus — this
+    // one is open for as long as the visitor is looking at it. Without this,
+    // the status below still updates live, but silently: no sound, no popup.
+    if (visitorPushToken) void listenForForegroundPush();
 
     try {
       const id = await createVisitorRequest({

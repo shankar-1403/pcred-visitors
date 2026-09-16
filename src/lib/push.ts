@@ -74,3 +74,50 @@ export async function registerPushToken(staffId: string): Promise<void> {
     console.error("[visitor-app] Could not register for push:", error);
   }
 }
+
+/**
+ * FCM only hands a push to the service worker's background handler while no
+ * tab of the app has focus. The kiosk tablet is the opposite of that: its tab
+ * is open and focused for as long as the device is switched on. A push that
+ * arrives while this page has focus is instead delivered here, to onMessage —
+ * and with nothing listening for it, it was received and silently dropped.
+ * This shows it the same way the service worker would, off the device's own
+ * notification channel, so the sound and the popup are the ones already set
+ * on that device, not something the app invents.
+ *
+ * Safe to call more than once — a second registration on the same messaging
+ * instance replaces the first rather than stacking a duplicate.
+ */
+export async function listenForForegroundPush(): Promise<void> {
+  if (!HAS_PUSH_CONFIG) return;
+
+  try {
+    const { getMessaging, onMessage, isSupported } = await import(
+      "firebase/messaging"
+    );
+
+    if (!(await isSupported())) return;
+    if (Notification.permission !== "granted") return;
+
+    onMessage(getMessaging(app!), (payload) => {
+      const { title, body } = payload.notification ?? {};
+      if (!title) return;
+
+      try {
+        new Notification(title, {
+          body,
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          tag: payload.data?.requestId
+            ? `visit-${payload.data.requestId}`
+            : undefined,
+        });
+      } catch {
+        // Notification construction can throw on some platforms — the page
+        // itself already reflects the same outcome via its own live data.
+      }
+    });
+  } catch (error) {
+    console.error("[visitor-app] Could not listen for foreground push:", error);
+  }
+}
