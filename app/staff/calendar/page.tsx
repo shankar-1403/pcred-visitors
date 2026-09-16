@@ -705,7 +705,7 @@ function CalendarView() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex h-dvh items-center justify-center p-4"
           >
             <button
               type="button"
@@ -891,7 +891,7 @@ function CalendarView() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex h-dvh items-center justify-center p-4"
           >
             <button
               type="button"
@@ -1074,7 +1074,7 @@ function CalendarView() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex h-dvh items-center justify-center p-4"
           >
             <button
               type="button"
