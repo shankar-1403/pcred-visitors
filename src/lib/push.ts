@@ -81,15 +81,20 @@ export async function registerPushToken(staffId: string): Promise<void> {
  * is open and focused for as long as the device is switched on. A push that
  * arrives while this page has focus is instead delivered here, to onMessage —
  * and with nothing listening for it, it was received and silently dropped.
- * This shows it the same way the service worker would, off the device's own
- * notification channel, so the sound and the popup are the ones already set
- * on that device, not something the app invents.
+ *
+ * Shown through the service worker's own showNotification() rather than the
+ * page-level `new Notification()` — the constructor throws outright on most
+ * mobile browsers, and on desktop Chrome specifically mutes the sound when
+ * the tab that raised it is the focused one, exactly this page's situation.
+ * Routing through the worker is the same call the background case already
+ * makes, so it rings with the device's real notification sound either way.
  *
  * Safe to call more than once — a second registration on the same messaging
  * instance replaces the first rather than stacking a duplicate.
  */
 export async function listenForForegroundPush(): Promise<void> {
   if (!HAS_PUSH_CONFIG) return;
+  if (!("serviceWorker" in navigator)) return;
 
   try {
     const { getMessaging, onMessage, isSupported } = await import(
@@ -99,23 +104,25 @@ export async function listenForForegroundPush(): Promise<void> {
     if (!(await isSupported())) return;
     if (Notification.permission !== "granted") return;
 
+    const registration = await navigator.serviceWorker.ready;
+
     onMessage(getMessaging(app!), (payload) => {
       const { title, body } = payload.notification ?? {};
       if (!title) return;
 
-      try {
-        new Notification(title, {
+      void registration
+        .showNotification(title, {
           body,
           icon: "/icon-192.png",
           badge: "/icon-192.png",
           tag: payload.data?.requestId
             ? `visit-${payload.data.requestId}`
             : undefined,
+        })
+        .catch(() => {
+          // The page itself already reflects the same outcome via its own
+          // live data, so a notification that can't be shown costs nothing.
         });
-      } catch {
-        // Notification construction can throw on some platforms — the page
-        // itself already reflects the same outcome via its own live data.
-      }
     });
   } catch (error) {
     console.error("[visitor-app] Could not listen for foreground push:", error);
