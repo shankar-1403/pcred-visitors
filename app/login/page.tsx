@@ -53,7 +53,7 @@ function LoginForm() {
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl backdrop-blur-sm">
         <div className="mb-6 flex justify-center">
           <Image
-            src="/logo.webp"
+            src="/logo-on-dark.webp"
             alt="PCRED"
             width={192}
             height={57}

@@ -460,7 +460,7 @@ export default function CheckInFlow({
         <header className="flex items-center justify-between px-5 py-5 sm:px-8 sm:py-6 lg:px-12">
           <div className="flex items-center gap-4">
             <Image
-              src="/pcred-logo.png"
+              src="/logo-on-dark.webp"
               alt="PCRED"
               width={192}
               height={57}

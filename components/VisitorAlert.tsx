@@ -126,7 +126,7 @@ export default function VisitorAlert() {
               body: `Here to meet ${request.staffName} · ${request.purpose}`,
               // Tagged per request so a re-render can't stack duplicates.
               tag: `visitor-${request.id}`,
-              icon: "/logo.png",
+              icon: "/icon-192.png",
             }
           );
 
